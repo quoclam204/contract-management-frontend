@@ -626,3 +626,72 @@ VITE_API_BASE_URL=https://localhost:7xxx
 ### Deployment
 - Không sửa file CI/CD pipeline nếu chưa được Lead duyệt
 - Mọi PR cần passing checks trước khi merge
+
+---
+
+## 📌 Git Commit Convention
+
+This project strictly adheres to the **Conventional Commits** specification for all commit messages across both the **.NET API backend** and **React frontend**.
+
+### 1. Commit Message Format
+The standard commit message format is:
+```text
+<type>: <description>
+```
+Or optionally with an explicit scope:
+```text
+<type>(<scope>): <description>
+```
+
+#### Allowed Scopes (Frontend):
+`auth`, `contract`, `workflow`, `partner`, `payment`, `attachment`, `dashboard`, `notification`, `ai`, `components`, `hooks`, `ui`, `router`
+
+### 2. Allowed Commit Types
+| Type | Purpose | When to Use |
+| :--- | :--- | :--- |
+| `feat` | Add a new feature | Introducing a new UI component, page, hook, or feature flow. |
+| `fix` | Fix a bug | Patching UI glitches, state errors, routing issues, or broken behavior. |
+| `refactor` | Restructure or improve code | Refactoring components/hooks without altering UI behavior. |
+| `docs` | Documentation changes | Updating README, specs, user guides, or component docstrings. |
+| `test` | Add or modify tests | Adding or updating Vitest, React Testing Library, or Playwright tests. |
+| `chore` | Configuration & maintenance | Updating packages, Vite/Tailwind configs, or repo maintenance. |
+| `style` | Code formatting & style | Formatting, linting, whitespace, or CSS styling tweaks without logic changes. |
+
+### 3. Commit Message Rules & Quality Standards
+- **Imperative Mood**: Write in the imperative mood (e.g., `add`, `implement`, `fix`, `refactor` — NOT `added`, `fixing`, `fixes`).
+- **Language**: All commit messages must be written in **English**.
+- **Short & Concise**: Keep the subject line short, clear, and meaningful (aim for ≤ 72 characters).
+- **Descriptive**: Accurately describe what changed and why in the codebase.
+- **Lowercase**: Use lowercase for type and starting character of description (e.g., `feat: implement ...`).
+
+### 4. 🚫 Strictly Forbidden Vague Messages
+Do NOT write vague, lazy, or ambiguous commit messages, such as:
+- ❌ `update code`
+- ❌ `fix`
+- ❌ `changes`
+- ❌ `done`
+- ❌ `update`
+- ❌ `final`
+- ❌ `modified files`
+- ❌ `fix bug`
+- ❌ `test`
+
+### 5. 🤖 Rules for AI Assistants
+- Whenever an AI assistant creates, suggests, or executes a Git commit, it **MUST** read and strictly follow the Git Commit Convention defined in this `CLAUDE.md`.
+- AI must inspect the staged changes (`git diff --staged`) to formulate a precise `<type>: <description>` or `<type>(<scope>): <description>`.
+- AI must NEVER use or suggest any of the forbidden vague commit messages listed above.
+
+### 6. Practical Frontend Examples
+- `feat(contract): add contract creation form with template selector`
+- `feat(dashboard): integrate Recharts for contract status analytics`
+- `feat(workflow): implement approval timeline and action buttons component`
+- `fix(auth): handle refresh token race condition on 401 response`
+- `fix(contract): correct date validation for contract expiry`
+- `refactor(components): extract reusable Modal dialog with Shadcn UI`
+- `refactor(hooks): simplify useContractApproval hook state logic`
+- `docs: update component usage instructions in README`
+- `test(hooks): add unit tests for useContractApproval custom hook`
+- `test(e2e): add Playwright test for contract draft creation flow`
+- `chore: update TanStack Query to version 5.x`
+- `style: adjust sidebar layout padding and mobile responsiveness`
+
