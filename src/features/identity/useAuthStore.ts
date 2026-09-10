@@ -7,6 +7,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
+  switchRole: (role: UserRole) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -22,5 +23,15 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     localStorage.removeItem('token');
     set({ user: null, token: null, isAuthenticated: false });
+  },
+
+  switchRole: (role) => {
+    set((state) => {
+      if (state.user) {
+        const updatedUser = { ...state.user, role };
+        return { user: updatedUser };
+      }
+      return state;
+    });
   },
 }));
