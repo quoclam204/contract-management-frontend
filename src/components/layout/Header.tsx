@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuthStore } from '@/features/identity/useAuthStore';
 import { LogOut } from 'lucide-react';
+import { NotificationPopover } from './NotificationPopover';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -12,6 +13,7 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4 text-xs">
+        <NotificationPopover />
         <span className="text-slate-700">
           Xin chào, <strong>{user?.fullName || 'Nhân viên'}</strong> ({user?.role || 'Staff'})
         </span>
