@@ -1,4 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7001';
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:5028';
 
 export class ApiError extends Error {
   constructor(
@@ -31,11 +34,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      endpoint,
-      errorData.message || `Request failed with status ${response.status}`
-    );
+    const message =
+      errorData.error ||
+      errorData.message ||
+      errorData.title ||
+      `Request failed with status ${response.status}`;
+
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+
+    throw new ApiError(response.status, endpoint, message);
   }
 
   if (response.status === 204) {
@@ -68,5 +78,13 @@ export const apiClient = {
 
   delete<T>(endpoint: string, options?: RequestInit): Promise<T> {
     return request<T>(endpoint, { ...options, method: 'DELETE' });
+  },
+
+  patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    return request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
   },
 };
