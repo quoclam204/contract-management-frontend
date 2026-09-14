@@ -10,6 +10,7 @@ import {
   Bot,
   Bell,
   Users,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
   const navItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard, author: 'Người 5' },
     { label: 'Hợp Đồng', path: '/contracts', icon: FileText, author: 'Người 2' },
+    { label: 'Phòng Ban', path: '/departments', icon: Layers, author: 'Người 1' },
     { label: 'Đối Tác', path: '/partners', icon: Building2, author: 'Người 3' },
     { label: 'Thanh Toán', path: '/payments', icon: CreditCard, author: 'Người 3' },
     { label: 'Tệp Đính Kèm', path: '/attachments', icon: Paperclip, author: 'Người 3' },
