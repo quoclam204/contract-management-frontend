@@ -6,7 +6,7 @@ import { UserManagementPage } from '@/features/identity/UserManagementPage';
 import { ContractListPage } from '@/features/contracts/ContractListPage';
 import { ContractDetailPage } from '@/features/contracts/ContractDetailPage';
 import { ContractCreatePage } from '@/features/contracts/ContractCreatePage';
-import { PartnerListPage } from '@/features/partners/PartnerListPage';
+import { PartnerListPage } from '@/features/partners';
 import { PaymentTrackingPage } from '@/features/payments/PaymentTrackingPage';
 import { AttachmentListPage } from '@/features/attachments/AttachmentListPage';
 import { ApprovalFlowPage } from '@/features/workflows/ApprovalFlowPage';
