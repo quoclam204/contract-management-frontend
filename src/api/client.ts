@@ -34,11 +34,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      endpoint,
-      errorData.message || `Request failed with status ${response.status}`
-    );
+    const message =
+      errorData.message ||
+      (errorData.errors
+        ? typeof errorData.errors === 'object'
+          ? Object.values(errorData.errors).flat().join(', ')
+          : String(errorData.errors)
+        : undefined) ||
+      errorData.detail ||
+      errorData.title ||
+      `Request failed with status ${response.status}`;
+
+    throw new ApiError(response.status, endpoint, message);
   }
 
   if (response.status === 204) {
