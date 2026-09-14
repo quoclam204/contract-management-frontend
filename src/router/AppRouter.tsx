@@ -1,7 +1,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LoginPage } from '@/features/identity/LoginPage';
+import { DepartmentListPage } from '@/features/identity/DepartmentListPage';
 import { UserManagementPage } from '@/features/identity/UserManagementPage';
 import { ContractListPage } from '@/features/contracts/ContractListPage';
 import { ContractDetailPage } from '@/features/contracts/ContractDetailPage';
@@ -20,7 +22,14 @@ export const AppRouter: React.FC = () => {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      <Route path="/" element={<MainLayout />}>
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
         {/* Người 5: Dashboard */}
         <Route index element={<DashboardPage />} />
 
@@ -28,6 +37,10 @@ export const AppRouter: React.FC = () => {
         <Route path="contracts" element={<ContractListPage />} />
         <Route path="contracts/create" element={<ContractCreatePage />} />
         <Route path="contracts/:id" element={<ContractDetailPage />} />
+
+        {/* Người 1: Departments & Users */}
+        <Route path="departments" element={<DepartmentListPage />} />
+        <Route path="users" element={<UserManagementPage />} />
 
         {/* Người 3: Partners, Payments, Attachments */}
         <Route path="partners" element={<PartnerListPage />} />
@@ -41,12 +54,10 @@ export const AppRouter: React.FC = () => {
         {/* Người 5: AI & Notifications */}
         <Route path="ai-analysis" element={<AIAnalysisPage />} />
         <Route path="notifications" element={<NotificationListPage />} />
-
-        {/* Người 1: User management */}
-        <Route path="users" element={<UserManagementPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
+
