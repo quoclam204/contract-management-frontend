@@ -37,6 +37,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     const message =
       errorData.error ||
       errorData.message ||
+      (errorData.errors
+        ? typeof errorData.errors === 'object'
+          ? Object.values(errorData.errors).flat().join(', ')
+          : String(errorData.errors)
+        : undefined) ||
+      errorData.detail ||
       errorData.title ||
       `Request failed with status ${response.status}`;
 
@@ -44,7 +50,6 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
-
     throw new ApiError(response.status, endpoint, message);
   }
 
