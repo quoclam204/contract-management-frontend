@@ -16,6 +16,7 @@ export const Header: React.FC = () => {
   const { user, logout, switchRole } = useAuthStore();
   const currentRole = user?.role || 'Staff';
 import { LogOut } from 'lucide-react';
+import { NotificationPopover } from './NotificationPopover';
 import { UserRole } from '@/types/auth';
 
 export const Header: React.FC = () => {
@@ -82,6 +83,7 @@ export const Header: React.FC = () => {
 
         {/* Logout */}
       <div className="flex items-center gap-4 text-xs">
+        <NotificationPopover />
         <span className="text-slate-700">
           Xin chào, <strong>{user?.fullName || 'Nhân viên'}</strong> ({user?.role || 'Staff'})
         </span>
