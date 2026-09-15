@@ -20,9 +20,10 @@ function getAuthToken(): string | null {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
+  const isFormData = options.body instanceof FormData;
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -66,18 +67,20 @@ export const apiClient = {
   },
 
   post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
   },
 
   put<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
   },
 
@@ -86,10 +89,49 @@ export const apiClient = {
   },
 
   patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
       method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
+  },
+
+  async getBlob(
+    endpoint: string,
+    options?: RequestInit
+  ): Promise<{ blob: Blob; fileName?: string }> {
+    const token = getAuthToken();
+
+    const headers: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    };
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message =
+        errorData.error ||
+        errorData.message ||
+        `Request failed with status ${response.status}`;
+      throw new ApiError(response.status, endpoint, message);
+    }
+
+    let fileName: string | undefined;
+    const disposition = response.headers.get('content-disposition');
+    if (disposition && disposition.includes('filename')) {
+      const match = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      if (match?.[1]) {
+        fileName = decodeURIComponent(match[1]);
+      }
+    }
+
+    const blob = await response.blob();
+    return { blob, fileName };
   },
 };
