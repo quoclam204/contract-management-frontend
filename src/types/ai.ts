@@ -1,27 +1,17 @@
-export type RiskLevel = 'Low' | 'Medium' | 'High';
+export type { AiAnalysisResultDto } from '@/features/ai-analysis/api/aiAnalysisApi';
 
-export interface RiskFlag {
-  id: string;
-  category: 'Phạt vi phạm' | 'Bồi thường thiệt hại' | 'Thanh toán trễ' | 'Quyền sở hữu trí tuệ' | 'Bảo mật';
-  severity: RiskLevel;
-  clauseReference: string;
-  description: string;
-  recommendation: string;
-}
+export function parseRiskFlags(raw: string | null): string[] {
+  if (!raw) return [];
 
-export interface ClauseExtraction {
-  id: string;
-  title: string;
-  extractedValue: string;
-  confidenceScore: number;
-}
+  try {
+    const parsed = JSON.parse(raw);
 
-export interface AIAnalysisResult {
-  contractId: string;
-  analyzedAt: string;
-  overallRiskScore: number; // 0 - 100
-  overallRiskLevel: RiskLevel;
-  summaryBulletPoints: string[];
-  keyClauses: ClauseExtraction[];
-  riskFlags: RiskFlag[];
+    if (Array.isArray(parsed)) {
+      return parsed.map(String);
+    }
+
+    return [String(parsed)];
+  } catch {
+    return [raw];
+  }
 }
