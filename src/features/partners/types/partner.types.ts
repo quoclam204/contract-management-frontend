@@ -23,3 +23,19 @@ export interface PartnerQueryParams {
   pageSize?: number;
   searchTerm?: string;
 }
+
+export interface CreatePartnerDto {
+  name: string;
+  taxCode: string;
+  representative: string;
+  contactEmail: string;
+  address: string;
+}
+
+export interface UpdatePartnerDto {
+  name: string;
+  taxCode: string;
+  representative: string;
+  contactEmail: string;
+  address: string;
+}

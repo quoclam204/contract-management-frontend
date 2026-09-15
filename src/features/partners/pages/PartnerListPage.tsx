@@ -5,6 +5,7 @@ import { getPartners } from '../api/partnerApi';
 import { Partner } from '../types/partner.types';
 import { PartnerTable } from '../components/PartnerTable';
 import { PartnerPagination } from '../components/PartnerPagination';
+import { PartnerFormModal } from '../components/PartnerFormModal';
 import { Button } from '@/components/ui/Button';
 
 export const PartnerListPage: React.FC = () => {
@@ -12,6 +13,10 @@ export const PartnerListPage: React.FC = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageNumber, setPageNumber] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Modal create / edit state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
 
   // Debounce search input by 400ms
   useEffect(() => {
@@ -56,8 +61,8 @@ export const PartnerListPage: React.FC = () => {
   };
 
   const handleAddPartner = () => {
-    // Placeholder ready for opening add partner modal/form
-    alert('Tính năng thêm mới đối tác sẽ sớm được cập nhật!');
+    setSelectedPartner(null);
+    setIsFormModalOpen(true);
   };
 
   const handleView = (partner: Partner) => {
@@ -65,7 +70,13 @@ export const PartnerListPage: React.FC = () => {
   };
 
   const handleEdit = (partner: Partner) => {
-    alert(`Chỉnh sửa đối tác: ${partner.name}`);
+    setSelectedPartner(partner);
+    setIsFormModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsFormModalOpen(false);
+    setSelectedPartner(null);
   };
 
   const handleDelete = (partner: Partner) => {
@@ -172,6 +183,13 @@ export const PartnerListPage: React.FC = () => {
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
         isLoading={isLoading}
+      />
+
+      {/* Create / Edit Partner Form Modal */}
+      <PartnerFormModal
+        isOpen={isFormModalOpen}
+        onClose={handleCloseModal}
+        initialData={selectedPartner}
       />
     </div>
   );

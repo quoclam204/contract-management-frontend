@@ -29,7 +29,7 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickFill = (testEmail: string, testRoleName: string) => {
+  const handleQuickFill = (testEmail: string, _testRoleName?: string) => {
     setEmail(testEmail);
     setPassword('Password@123');
     setErrorMessage(null);

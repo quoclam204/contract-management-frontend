@@ -56,13 +56,5 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!currentUser) return false;
     const allowed = Array.isArray(roles) ? roles : [roles];
     return allowed.includes(currentUser.role);
-    set((state) => {
-      if (state.user) {
-        const updatedUser = { ...state.user, role };
-        return { user: updatedUser };
-      }
-      return state;
-    });
   },
 }));
-
