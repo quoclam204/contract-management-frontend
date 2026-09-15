@@ -1,20 +1,63 @@
 export type UserRole = 'Admin' | 'Manager' | 'Staff' | 'Approver';
 
+export enum UserRoleEnum {
+  Admin = 0,
+  Manager = 1,
+  Staff = 2,
+  Approver = 3,
+}
+
+export const ROLE_NAMES: Record<number, UserRole> = {
+  0: 'Admin',
+  1: 'Manager',
+  2: 'Staff',
+  3: 'Approver',
+};
+
+export const ROLE_VALUES: Record<UserRole, number> = {
+  Admin: 0,
+  Manager: 1,
+  Staff: 2,
+  Approver: 3,
+};
+
 export interface User {
   id: string;
-  username: string;
   fullName: string;
   email: string;
   role: UserRole;
-  department: string;
-  avatarUrl?: string;
+  roleId?: number;
+  roleName?: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  isActive?: boolean;
+  createdAt?: string;
 }
 
-export interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  login: (user: User, token: string) => void;
-  logout: () => void;
-  switchRole: (role: UserRole) => void;
+export interface LoginRequestDto {
+  email: string;
+  password: string;
 }
+
+export interface LoginResponseDto {
+  token: string;
+  user: {
+    id: string;
+    fullName: string;
+    email: string;
+    role: number | UserRole;
+    roleName: string;
+    departmentId: string | null;
+    isActive: boolean;
+    createdAt: string;
+  };
+}
+
+export interface RegisterUserDto {
+  fullName: string;
+  email: string;
+  password: string;
+  role?: number;
+  departmentId?: string | null;
+}
+

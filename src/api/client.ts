@@ -1,4 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://localhost:7001';
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:5028';
 
 export class ApiError extends Error {
   constructor(
@@ -17,9 +20,10 @@ function getAuthToken(): string | null {
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
+  const isFormData = options.body instanceof FormData;
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -31,11 +35,23 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      endpoint,
-      errorData.message || `Request failed with status ${response.status}`
-    );
+    const message =
+      errorData.error ||
+      errorData.message ||
+      (errorData.errors
+        ? typeof errorData.errors === 'object'
+          ? Object.values(errorData.errors).flat().join(', ')
+          : String(errorData.errors)
+        : undefined) ||
+      errorData.detail ||
+      errorData.title ||
+      `Request failed with status ${response.status}`;
+
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    }
+    throw new ApiError(response.status, endpoint, message);
   }
 
   if (response.status === 204) {
@@ -51,18 +67,20 @@ export const apiClient = {
   },
 
   post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
   },
 
   put<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
+    const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
   },
 
@@ -76,5 +94,51 @@ export const apiClient = {
       method: 'PATCH',
       body: body ? JSON.stringify(body) : undefined,
     });
+  },
+};
+    const isFormData = body instanceof FormData;
+    return request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
+    });
+  },
+
+  async getBlob(
+    endpoint: string,
+    options?: RequestInit
+  ): Promise<{ blob: Blob; fileName?: string }> {
+    const token = getAuthToken();
+
+    const headers: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options?.headers,
+    };
+
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const message =
+        errorData.error ||
+        errorData.message ||
+        `Request failed with status ${response.status}`;
+      throw new ApiError(response.status, endpoint, message);
+    }
+
+    let fileName: string | undefined;
+    const disposition = response.headers.get('content-disposition');
+    if (disposition && disposition.includes('filename')) {
+      const match = disposition.match(/filename\*?=['"]?(?:UTF-\d['"]*)?([^;\r\n"']*)['"]?/i);
+      if (match?.[1]) {
+        fileName = decodeURIComponent(match[1]);
+      }
+    }
+
+    const blob = await response.blob();
+    return { blob, fileName };
   },
 };
