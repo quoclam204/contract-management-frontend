@@ -9,9 +9,14 @@ interface CanProps {
 }
 
 export const Can: React.FC<CanProps> = ({ roles, children, fallback = null }) => {
-  const hasRole = useAuthStore((state) => state.hasRole);
+  const user = useAuthStore((state) => state.user);
 
-  if (!hasRole(roles)) {
+  if (!user) {
+    return <>{fallback}</>;
+  }
+
+  const allowed = Array.isArray(roles) ? roles : [roles];
+  if (!allowed.includes(user.role)) {
     return <>{fallback}</>;
   }
 
