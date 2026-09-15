@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
   Check,
@@ -12,81 +13,53 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-export type NotificationType =
-  | 'new_submission'
-  | 'approval_required'
-  | 'expiring_soon'
-  | 'digitally_signed'
-  | 'system';
-
-export interface NotificationItem {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  createdAt: string;
-  isRead: boolean;
-  contractId: string | null;
-}
-
-const INITIAL_MOCK_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: 'notif-1',
-    title: 'Hợp đồng mới được trình duyệt',
-    message: 'Hợp đồng Cung cấp Thiết bị IT (HD-2026-001) vừa được trình duyệt bởi Nguyễn Văn A.',
-    type: 'new_submission',
-    createdAt: '10 phút trước',
-    isRead: false,
-    contractId: 'HD-2026-001',
-  },
-  {
-    id: 'notif-2',
-    title: 'Yêu cầu phê duyệt cấp trưởng phòng',
-    message: 'Hợp đồng Dịch vụ Bảo trì (HD-2026-004) đang chờ bạn phê duyệt cấp Trưởng phòng.',
-    type: 'approval_required',
-    createdAt: '1 giờ trước',
-    isRead: false,
-    contractId: 'HD-2026-004',
-  },
-  {
-    id: 'notif-3',
-    title: 'Cảnh báo hợp đồng sắp hết hạn 30 ngày',
-    message: 'Hợp đồng Thuê Văn phòng (HD-2025-089) sẽ hết hạn trong 30 ngày tới.',
-    type: 'expiring_soon',
-    createdAt: 'Hôm qua',
-    isRead: false,
-    contractId: 'HD-2025-089',
-  },
-  {
-    id: 'notif-4',
-    title: 'Ký số thành công',
-    message: 'Hợp đồng Tư vấn Giải pháp (HD-2026-002) đã hoàn tất ký số bởi Giám đốc.',
-    type: 'digitally_signed',
-    createdAt: '2 ngày trước',
-    isRead: true,
-    contractId: 'HD-2026-002',
-  },
-  {
-    id: 'notif-5',
-    title: 'Cập nhật hệ thống CLM',
-    message: 'Hệ thống đã cập nhật tính năng Trợ lý AI phân tích hợp đồng mới.',
-    type: 'system',
-    createdAt: '3 ngày trước',
-    isRead: true,
-    contractId: null,
-  },
-];
+import {
+  getNotifications,
+  markNotificationsRead,
+  markAllNotificationsRead,
+  mapNotificationDtoToDisplay,
+} from '@/features/notifications/api';
+import type { NotificationDisplayItem } from '@/types/notification';
 
 export const NotificationPopover: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>(
-    INITIAL_MOCK_NOTIFICATIONS
-  );
   const containerRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const {
+    data: dtos,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => getNotifications(),
+    refetchInterval: 30_000,
+  });
+
+  const notifications: NotificationDisplayItem[] = useMemo(
+    () => (dtos ?? []).map(mapNotificationDtoToDisplay),
+    [dtos]
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.isRead).length,
+    [notifications]
+  );
+
+  const markOneMutation = useMutation({
+    mutationFn: (id: string) => markNotificationsRead([id]),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const markAllMutation = useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
 
   // Handle click outside & escape key
   useEffect(() => {
@@ -122,18 +95,16 @@ export const NotificationPopover: React.FC = () => {
 
   const handleMarkAsRead = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    markOneMutation.mutate(id);
   };
 
   const handleMarkAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    markAllMutation.mutate();
   };
 
-  const handleNotificationClick = (notification: NotificationItem) => {
+  const handleNotificationClick = (notification: NotificationDisplayItem) => {
     if (!notification.isRead) {
-      handleMarkAsRead(notification.id);
+      markOneMutation.mutate(notification.id);
     }
 
     setIsOpen(false);
@@ -143,7 +114,7 @@ export const NotificationPopover: React.FC = () => {
     }
   };
 
-  const getNotificationIcon = (type: NotificationType) => {
+  const getNotificationIcon = (type: NotificationDisplayItem['type']) => {
     switch (type) {
       case 'new_submission':
         return <FileText className="w-4 h-4 text-blue-600" />;
@@ -159,7 +130,7 @@ export const NotificationPopover: React.FC = () => {
     }
   };
 
-  const getIconBgClass = (type: NotificationType) => {
+  const getIconBgClass = (type: NotificationDisplayItem['type']) => {
     switch (type) {
       case 'new_submission':
         return 'bg-blue-50 border-blue-100';
@@ -228,7 +199,14 @@ export const NotificationPopover: React.FC = () => {
 
           {/* Notification List */}
           <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
-            {notifications.length === 0 ? (
+            {isLoading ? (
+              <div className="p-8 text-center text-slate-400 text-xs">Đang tải thông báo...</div>
+            ) : isError ? (
+              <div className="p-8 text-center text-xs">
+                <p className="font-medium text-rose-600">Không tải được thông báo</p>
+                <p className="text-slate-400 mt-1">Vui lòng thử lại sau.</p>
+              </div>
+            ) : notifications.length === 0 ? (
               <div className="p-8 text-center text-slate-400 text-xs">
                 <Bell className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
                 <p className="font-medium text-slate-500">Không có thông báo nào</p>
@@ -282,7 +260,7 @@ export const NotificationPopover: React.FC = () => {
 
                     {notification.contractId && (
                       <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-blue-600 group-hover:text-blue-700">
-                        <span>Hợp đồng #{notification.contractId}</span>
+                        <span>Hợp đồng #{notification.contractId.slice(0, 8)}</span>
                         <ChevronRight className="w-3 h-3" />
                       </div>
                     )}
