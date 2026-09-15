@@ -89,13 +89,6 @@ export const apiClient = {
   },
 
   patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<T> {
-    return request<T>(endpoint, {
-      ...options,
-      method: 'PATCH',
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  },
-};
     const isFormData = body instanceof FormData;
     return request<T>(endpoint, {
       ...options,
