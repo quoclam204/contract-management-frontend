@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ApprovalTimeline } from '@/components/approval/ApprovalTimeline';
 import { ApprovalActionDialog } from '@/components/approval/ApprovalActionDialog';
 import { ApprovalService } from '@/services/approvalService';
+import { AIAnalysisWidget } from '@/features/ai-analysis/AIAnalysisWidget';
 
 // Mock current user - in real app, this would come from auth context
 const mockCurrentUser = {
@@ -121,6 +122,14 @@ export const ContractDetailPage: React.FC = () => {
         approverId={mockCurrentUser.id}
         onSubmit={ApprovalService.processApprovalStep}
       />
+
+      {/* AI Contract Assistant — Người 5 */}
+      {id && (
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Phân tích AI</h2>
+          <AIAnalysisWidget contractId={id} />
+        </div>
+      )}
     </div>
   );
 };
