@@ -16,12 +16,14 @@ export interface PartnerFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: Partner | null;
+  isReadOnly?: boolean;
 }
 
 export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
   isOpen,
   onClose,
   initialData,
+  isReadOnly = false,
 }) => {
   const queryClient = useQueryClient();
   const isEdit = Boolean(initialData && initialData.id);
@@ -105,16 +107,24 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
           onClose();
         }
       }}
-      title={isEdit ? 'Chỉnh sửa đối tác' : 'Thêm mới đối tác'}
+      title={
+        isReadOnly
+          ? 'Chi tiết đối tác'
+          : isEdit
+          ? 'Chỉnh sửa đối tác'
+          : 'Thêm mới đối tác'
+      }
       description={
-        isEdit
+        isReadOnly
+          ? 'Xem thông tin chi tiết đối tác doanh nghiệp / nhà cung cấp'
+          : isEdit
           ? 'Cập nhật thông tin đối tác doanh nghiệp / nhà cung cấp trong hệ thống'
           : 'Thêm mới đối tác kinh doanh để phục vụ quản lý hợp đồng và thanh toán'
       }
       maxWidth="lg"
     >
       <form noValidate onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {mutation.isError && (
+        {mutation.isError && !isReadOnly && (
           <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs animate-in fade-in">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div>
@@ -132,10 +142,10 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
           <Input
             id="partner-name"
             label="Tên đối tác / Doanh nghiệp"
-            required
+            required={!isReadOnly}
             placeholder="VD: Công ty Cổ phần Công nghệ FPT"
-            error={errors.name?.message}
-            disabled={isLoading}
+            error={!isReadOnly ? errors.name?.message : undefined}
+            disabled={isLoading || isReadOnly}
             {...register('name')}
           />
         </div>
@@ -145,20 +155,20 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
           <Input
             id="partner-taxCode"
             label="Mã số thuế"
-            required
+            required={!isReadOnly}
             placeholder="VD: 0101234567 hoặc 0101234567-001"
-            error={errors.taxCode?.message}
-            disabled={isLoading}
+            error={!isReadOnly ? errors.taxCode?.message : undefined}
+            disabled={isLoading || isReadOnly}
             {...register('taxCode')}
           />
 
           <Input
             id="partner-representative"
             label="Người đại diện"
-            required
+            required={!isReadOnly}
             placeholder="VD: Nguyễn Văn A"
-            error={errors.representative?.message}
-            disabled={isLoading}
+            error={!isReadOnly ? errors.representative?.message : undefined}
+            disabled={isLoading || isReadOnly}
             {...register('representative')}
           />
         </div>
@@ -169,10 +179,10 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
             id="partner-contactEmail"
             type="email"
             label="Email liên hệ"
-            required
+            required={!isReadOnly}
             placeholder="VD: contact@doitac.com"
-            error={errors.contactEmail?.message}
-            disabled={isLoading}
+            error={!isReadOnly ? errors.contactEmail?.message : undefined}
+            disabled={isLoading || isReadOnly}
             {...register('contactEmail')}
           />
         </div>
@@ -183,50 +193,64 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
             htmlFor="partner-address"
             className="block text-xs font-semibold text-slate-700"
           >
-            Địa chỉ trụ sở <span className="text-rose-500">*</span>
+            Địa chỉ trụ sở {!isReadOnly && <span className="text-rose-500">*</span>}
           </label>
           <textarea
             id="partner-address"
             rows={3}
             placeholder="VD: Tòa nhà FPT, Phố Duy Tân, Cầu Giấy, Hà Nội"
-            disabled={isLoading}
+            disabled={isLoading || isReadOnly}
             className={cn(
               'w-full px-3.5 py-2 text-sm bg-white border border-slate-300 rounded-lg shadow-2xs placeholder:text-slate-400',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none',
-              'disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed',
-              errors.address && 'border-rose-400 focus:ring-rose-500 focus:border-rose-500'
+              'disabled:bg-slate-50 disabled:text-slate-600 disabled:cursor-not-allowed',
+              errors.address && !isReadOnly && 'border-rose-400 focus:ring-rose-500 focus:border-rose-500'
             )}
             {...register('address')}
           />
-          {errors.address ? (
-            <p className="text-xs text-rose-500 font-medium">
-              {errors.address.message}
-            </p>
-          ) : (
-            <p className="text-xs text-slate-400">
-              Tối đa 500 ký tự theo quy định bảng 4.3 SRS v3.
-            </p>
+          {!isReadOnly && (
+            errors.address ? (
+              <p className="text-xs text-rose-500 font-medium">
+                {errors.address.message}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">
+                Tối đa 500 ký tự theo quy định bảng 4.3 SRS v3.
+              </p>
+            )
           )}
         </div>
 
         {/* Modal Actions Footer */}
         <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Hủy bỏ
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            isLoading={isLoading}
-            disabled={isLoading}
-          >
-            {isEdit ? 'Lưu thay đổi' : 'Thêm đối tác'}
-          </Button>
+          {isReadOnly ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+            >
+              Đóng
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                disabled={isLoading}
+              >
+                Hủy bỏ
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isLoading}
+                disabled={isLoading}
+              >
+                {isEdit ? 'Lưu thay đổi' : 'Thêm đối tác'}
+              </Button>
+            </>
+          )}
         </div>
       </form>
     </Modal>
