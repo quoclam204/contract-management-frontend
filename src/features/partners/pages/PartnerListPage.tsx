@@ -6,6 +6,7 @@ import { Partner } from '../types/partner.types';
 import { PartnerTable } from '../components/PartnerTable';
 import { PartnerPagination } from '../components/PartnerPagination';
 import { PartnerFormModal } from '../components/PartnerFormModal';
+import { PartnerDetailModal } from '../components/PartnerDetailModal';
 import { Button } from '@/components/ui/Button';
 
 export const PartnerListPage: React.FC = () => {
@@ -17,6 +18,10 @@ export const PartnerListPage: React.FC = () => {
   // Modal create / edit state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+
+  // Modal detail view state
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedPartnerForView, setSelectedPartnerForView] = useState<Partner | null>(null);
 
   // Debounce search input by 400ms
   useEffect(() => {
@@ -66,7 +71,20 @@ export const PartnerListPage: React.FC = () => {
   };
 
   const handleView = (partner: Partner) => {
-    alert(`Xem chi tiết đối tác: ${partner.name} (MST: ${partner.taxCode})`);
+    setSelectedPartnerForView(partner);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setIsDetailModalOpen(false);
+    setSelectedPartnerForView(null);
+  };
+
+  const handleEditFromDetail = (partner: Partner) => {
+    setIsDetailModalOpen(false);
+    setSelectedPartnerForView(null);
+    setSelectedPartner(partner);
+    setIsFormModalOpen(true);
   };
 
   const handleEdit = (partner: Partner) => {
@@ -190,6 +208,14 @@ export const PartnerListPage: React.FC = () => {
         isOpen={isFormModalOpen}
         onClose={handleCloseModal}
         initialData={selectedPartner}
+      />
+
+      {/* View Partner Detail Modal (Read-only) */}
+      <PartnerDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetailModal}
+        partner={selectedPartnerForView}
+        onEdit={handleEditFromDetail}
       />
     </div>
   );

@@ -9,7 +9,6 @@ import { ContractListPage } from '@/features/contracts/ContractListPage';
 import { ContractDetailPage } from '@/features/contracts/ContractDetailPage';
 import { ContractCreatePage } from '@/features/contracts/ContractCreatePage';
 import { PartnerListPage } from '@/features/partners';
-import { PaymentTrackingPage } from '@/features/payments/PaymentTrackingPage';
 import { AttachmentListPage } from '@/features/attachments/AttachmentListPage';
 import { ApprovalFlowPage } from '@/features/workflows/ApprovalFlowPage';
 import { WorkflowConfigPage } from '@/features/workflows/WorkflowConfigPage';
@@ -42,9 +41,8 @@ export const AppRouter: React.FC = () => {
         <Route path="departments" element={<DepartmentListPage />} />
         <Route path="users" element={<UserManagementPage />} />
 
-        {/* Người 3: Partners, Payments, Attachments */}
+        {/* Người 3: Partners, Attachments */}
         <Route path="partners" element={<PartnerListPage />} />
-        <Route path="payments" element={<PaymentTrackingPage />} />
         <Route path="attachments" element={<AttachmentListPage />} />
 
         {/* Người 4: Workflows */}

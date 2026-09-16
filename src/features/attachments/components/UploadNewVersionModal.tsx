@@ -40,11 +40,39 @@ export const UploadNewVersionModal: React.FC<UploadNewVersionModalProps> = ({
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  if (!attachment) return null;
-
-  const currentVersionNumber = attachment.currentVersion || 1;
+  const currentVersionNumber = attachment?.currentVersion || 1;
   const nextVersionNumber = currentVersionNumber + 1;
   const nextVersionString = `v${nextVersionNumber}`;
+
+  const handleClose = () => {
+    setNewFile(null);
+    setVersionNotes('');
+    setErrorText(null);
+    onClose();
+  };
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!attachment) throw new Error('Không tìm thấy tệp đính kèm');
+      if (!newFile) throw new Error('Vui lòng chọn tệp phiên bản mới');
+      const formData = new FormData();
+      formData.append('file', newFile);
+      if (versionNotes.trim()) {
+        formData.append('notes', versionNotes.trim());
+      }
+      return await uploadNewVersion(attachment.id, formData);
+    },
+    onSuccess: () => {
+      message.success(
+        `Đã tải lên phiên bản mới (${nextVersionString}) cho tệp "${attachment?.fileName || ''}"!`
+      );
+      queryClient.invalidateQueries({ queryKey: ['attachments'] });
+      handleClose();
+    },
+    onError: (err: Error) => {
+      message.error(err.message || 'Không thể tải lên phiên bản mới. Vui lòng thử lại.');
+    },
+  });
 
   const validateFile = (file: File): boolean => {
     setErrorText(null);
@@ -97,35 +125,6 @@ export const UploadNewVersionModal: React.FC<UploadNewVersionModalProps> = ({
     }
   };
 
-  const handleClose = () => {
-    setNewFile(null);
-    setVersionNotes('');
-    setErrorText(null);
-    onClose();
-  };
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (!newFile) throw new Error('Vui lòng chọn tệp phiên bản mới');
-      const formData = new FormData();
-      formData.append('file', newFile);
-      if (versionNotes.trim()) {
-        formData.append('notes', versionNotes.trim());
-      }
-      return await uploadNewVersion(attachment.id, formData);
-    },
-    onSuccess: () => {
-      message.success(
-        `Đã tải lên phiên bản mới (${nextVersionString}) cho tệp "${attachment.fileName}"!`
-      );
-      queryClient.invalidateQueries({ queryKey: ['attachments'] });
-      handleClose();
-    },
-    onError: (err: Error) => {
-      message.error(err.message || 'Không thể tải lên phiên bản mới. Vui lòng thử lại.');
-    },
-  });
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFile) {
@@ -134,6 +133,8 @@ export const UploadNewVersionModal: React.FC<UploadNewVersionModalProps> = ({
     }
     mutation.mutate();
   };
+
+  if (!attachment) return null;
 
   const meta = newFile ? getFileTypeMetadata(newFile.name) : null;
 

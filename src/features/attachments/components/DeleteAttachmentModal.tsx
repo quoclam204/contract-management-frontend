@@ -20,14 +20,13 @@ export const DeleteAttachmentModal: React.FC<DeleteAttachmentModalProps> = ({
 }) => {
   const queryClient = useQueryClient();
 
-  if (!attachment) return null;
-
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!attachment) throw new Error('Không tìm thấy tệp đính kèm');
       return await deleteAttachment(attachment.id);
     },
     onSuccess: () => {
-      message.success(`Đã xóa tệp "${attachment.fileName}" thành công!`);
+      message.success(`Đã xóa tệp "${attachment?.fileName || ''}" thành công!`);
       queryClient.invalidateQueries({ queryKey: ['attachments'] });
       onClose();
     },
@@ -35,6 +34,8 @@ export const DeleteAttachmentModal: React.FC<DeleteAttachmentModalProps> = ({
       message.error(err.message || 'Không thể xóa tệp. Vui lòng thử lại sau.');
     },
   });
+
+  if (!attachment) return null;
 
   return (
     <Modal

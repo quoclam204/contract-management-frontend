@@ -6,18 +6,13 @@ import {
   X,
   RotateCcw,
   AlertCircle,
-  Paperclip,
-  HardDrive,
-  History,
-  FileStack,
   Filter,
   Plus,
 } from 'lucide-react';
 import { getAttachments, downloadAttachment } from './api/attachmentApi';
 import { Attachment } from './types/attachment.types';
-import { formatFileSize } from './utils/attachment.utils';
-import { AttachmentDropzone } from './components/AttachmentDropzone';
 import { AttachmentTable } from './components/AttachmentTable';
+import { UploadAttachmentModal } from './components/UploadAttachmentModal';
 import { UploadNewVersionModal } from './components/UploadNewVersionModal';
 import { DeleteAttachmentModal } from './components/DeleteAttachmentModal';
 import { VersionHistoryModal } from './components/VersionHistoryModal';
@@ -28,7 +23,9 @@ export const AttachmentListPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedContractFilter, setSelectedContractFilter] = useState<string>('all');
-  const [isUploadSectionOpen, setIsUploadSectionOpen] = useState<boolean>(true);
+
+  // Modal upload state
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
 
   // Modals state
   const [versionModalItem, setVersionModalItem] = useState<Attachment | null>(null);
@@ -65,14 +62,6 @@ export const AttachmentListPage: React.FC = () => {
       }),
   });
 
-  // Calculate statistics metrics
-  const totalFiles = attachments.length;
-  const totalSizeBytes = attachments.reduce((sum, item) => sum + (item.fileSize || 0), 0);
-  const totalVersions = attachments.reduce(
-    (sum, item) => sum + (item.versions?.length || 1),
-    0
-  );
-
   const handleClearSearch = () => {
     setSearchInput('');
     setDebouncedSearch('');
@@ -106,77 +95,31 @@ export const AttachmentListPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Top Header & Overview */}
+      {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
-            <Paperclip className="w-6 h-6 text-blue-600" />
-            <span>Quản Lý Tệp Đính Kèm & Phiên Bản</span>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Quản lý Tệp Đính Kèm & Phiên Bản
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Lưu trữ tài liệu hợp đồng, phụ lục, chứng từ và quản lý lịch sử phiên bản tài liệu theo đặc tả SRS v3
+            Quản lý, lưu trữ và theo dõi lịch sử các phiên bản tài liệu hợp đồng
           </p>
         </div>
 
         <Button
           type="button"
-          variant={isUploadSectionOpen ? 'outline' : 'primary'}
-          onClick={() => setIsUploadSectionOpen(!isUploadSectionOpen)}
-          className="shrink-0 shadow-xs"
+          onClick={() => setIsUploadModalOpen(true)}
+          className="shadow-sm shrink-0"
         >
-          <Plus className={`w-4 h-4 mr-1.5 transition-transform ${isUploadSectionOpen ? 'rotate-45' : ''}`} />
-          <span>{isUploadSectionOpen ? 'Thu gọn khung upload' : 'Tải lên tài liệu'}</span>
+          <Plus className="w-4 h-4 mr-1.5" />
+          <span>Tải lên tệp</span>
         </Button>
       </div>
 
-      {/* Quick Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-            <FileStack className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500">Tổng số tệp đính kèm</p>
-            <p className="text-xl font-bold text-slate-900 mt-0.5">{totalFiles} tệp</p>
-          </div>
-        </div>
-
-        <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-            <HardDrive className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500">Dung lượng lưu trữ</p>
-            <p className="text-xl font-bold text-slate-900 mt-0.5 font-mono">
-              {formatFileSize(totalSizeBytes)}
-            </p>
-          </div>
-        </div>
-
-        <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-            <History className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-slate-500">Tổng số phiên bản lưu trữ</p>
-            <p className="text-xl font-bold text-slate-900 mt-0.5">{totalVersions} phiên bản</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Upload Dropzone Section (collapsible) */}
-      {isUploadSectionOpen && (
-        <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-          <AttachmentDropzone
-            defaultContractId={selectedContractFilter !== 'all' ? selectedContractFilter : undefined}
-          />
-        </div>
-      )}
-
-      {/* Search & Filter Controls */}
-      <div className="bg-white p-3.5 sm:p-4 border border-slate-200 rounded-2xl shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* Control Bar: Search Input & Contract Filter */}
+      <div className="bg-white p-3 sm:p-4 border border-slate-200 rounded-xl shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
             <Search className="w-4 h-4" />
           </div>
           <input
@@ -184,7 +127,7 @@ export const AttachmentListPage: React.FC = () => {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Tìm theo tên tệp, số hợp đồng, người tải..."
-            className="w-full pl-9 pr-9 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all"
+            className="w-full pl-9 pr-9 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all"
           />
           {searchInput && (
             <button
@@ -206,7 +149,7 @@ export const AttachmentListPage: React.FC = () => {
           <select
             value={selectedContractFilter}
             onChange={(e) => setSelectedContractFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all cursor-pointer max-w-[220px] truncate"
+            className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all cursor-pointer max-w-[220px] truncate"
           >
             <option value="all">Tất cả hợp đồng</option>
             {contracts.map((c) => (
@@ -217,8 +160,8 @@ export const AttachmentListPage: React.FC = () => {
           </select>
 
           {isFetching && !isLoading && (
-            <span className="text-xs text-slate-400 italic hidden md:inline ml-1">
-              Đang làm mới...
+            <span className="text-xs text-slate-400 italic hidden sm:inline ml-1">
+              Đang cập nhật...
             </span>
           )}
         </div>
@@ -258,24 +201,39 @@ export const AttachmentListPage: React.FC = () => {
       />
 
       {/* Modals */}
-      <UploadNewVersionModal
-        isOpen={Boolean(versionModalItem)}
-        onClose={() => setVersionModalItem(null)}
-        attachment={versionModalItem}
+      <UploadAttachmentModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        defaultContractId={selectedContractFilter !== 'all' ? selectedContractFilter : undefined}
+        onUploadSuccess={() => {
+          refetch();
+        }}
       />
 
-      <DeleteAttachmentModal
-        isOpen={Boolean(deleteModalItem)}
-        onClose={() => setDeleteModalItem(null)}
-        attachment={deleteModalItem}
-      />
+      {versionModalItem && (
+        <UploadNewVersionModal
+          isOpen={Boolean(versionModalItem)}
+          onClose={() => setVersionModalItem(null)}
+          attachment={versionModalItem}
+        />
+      )}
 
-      <VersionHistoryModal
-        isOpen={Boolean(historyModalItem)}
-        onClose={() => setHistoryModalItem(null)}
-        attachment={historyModalItem}
-        onDownload={handleDownloadHistoryVersion}
-      />
+      {deleteModalItem && (
+        <DeleteAttachmentModal
+          isOpen={Boolean(deleteModalItem)}
+          onClose={() => setDeleteModalItem(null)}
+          attachment={deleteModalItem}
+        />
+      )}
+
+      {historyModalItem && (
+        <VersionHistoryModal
+          isOpen={Boolean(historyModalItem)}
+          onClose={() => setHistoryModalItem(null)}
+          attachment={historyModalItem}
+          onDownload={handleDownloadHistoryVersion}
+        />
+      )}
     </div>
   );
 };
