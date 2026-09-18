@@ -2,12 +2,14 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { UserRole } from '@/types/auth';
 import { LoginPage } from '@/features/identity/LoginPage';
 import { DepartmentListPage } from '@/features/identity/DepartmentListPage';
 import { UserManagementPage } from '@/features/identity/UserManagementPage';
 import { ContractListPage } from '@/features/contracts/ContractListPage';
 import { ContractDetailPage } from '@/features/contracts/ContractDetailPage';
 import { ContractCreatePage } from '@/features/contracts/ContractCreatePage';
+import { ContractTypePage } from '@/features/contracts/ContractTypePage';
 import { PartnerListPage } from '@/features/partners';
 import { AttachmentListPage } from '@/features/attachments/AttachmentListPage';
 import { ApprovalFlowPage } from '@/features/workflows/ApprovalFlowPage';
@@ -36,10 +38,18 @@ export const AppRouter: React.FC = () => {
         <Route path="contracts" element={<ContractListPage />} />
         <Route path="contracts/create" element={<ContractCreatePage />} />
         <Route path="contracts/:id" element={<ContractDetailPage />} />
+        <Route path="contract-types" element={<ContractTypePage />} />
 
         {/* Người 1: Departments & Users */}
         <Route path="departments" element={<DepartmentListPage />} />
-        <Route path="users" element={<UserManagementPage />} />
+        <Route
+          path="users"
+          element={
+            <ProtectedRoute allowedRoles={['Admin', 'Manager']}>
+              <UserManagementPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Người 3: Partners, Attachments */}
         <Route path="partners" element={<PartnerListPage />} />
@@ -47,7 +57,14 @@ export const AppRouter: React.FC = () => {
 
         {/* Người 4: Workflows */}
         <Route path="workflows" element={<ApprovalFlowPage />} />
-        <Route path="workflows/config" element={<WorkflowConfigPage />} />
+        <Route
+          path="workflows/config"
+          element={
+            <ProtectedRoute allowedRoles={['Admin', 'Manager']}>
+              <WorkflowConfigPage />
+            </ProtectedRoute>
+          }
+        />
 
         {/* Người 5: AI & Notifications */}
         <Route path="ai-analysis" element={<AIAnalysisPage />} />

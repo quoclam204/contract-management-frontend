@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="badgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <!-- Document back shadow/fold -->
+  <path d="M10 6C10 4.89543 10.8954 4 12 4H28L38 14V42C38 43.1046 37.1046 44 36 44H12C10.8954 44 10 43.1046 10 42V6Z" fill="url(#docGrad)" />
+  <!-- Fold corner -->
+  <path d="M28 4V12C28 13.1046 28.8954 14 30 14H38L28 4Z" fill="#93C5FD" opacity="0.8" />
+  <!-- Contract content lines -->
+  <rect x="16" y="18" width="16" height="2.5" rx="1.25" fill="#FFFFFF" opacity="0.9" />
+  <rect x="16" y="23" width="12" height="2.5" rx="1.25" fill="#FFFFFF" opacity="0.9" />
+  <rect x="16" y="28" width="10" height="2.5" rx="1.25" fill="#FFFFFF" opacity="0.7" />
+  <!-- Verified / Signature badge -->
+  <circle cx="33" cy="35" r="7" fill="url(#badgeGrad)" stroke="#FFFFFF" stroke-width="2" />
+  <path d="M30 35L32 37L36 33" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+</svg>
