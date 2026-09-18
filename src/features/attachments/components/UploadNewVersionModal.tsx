@@ -60,7 +60,7 @@ export const UploadNewVersionModal: React.FC<UploadNewVersionModalProps> = ({
       if (versionNotes.trim()) {
         formData.append('notes', versionNotes.trim());
       }
-      return await uploadNewVersion(attachment.id, formData);
+      return await uploadNewVersion(attachment.contractId, formData);
     },
     onSuccess: () => {
       message.success(

@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/api/client';
-import { Contract } from '@/types/contract';
+import { contractApi } from '@/features/contracts/api/contractApi';
 
 export interface ContractListParams {
   page?: number;
@@ -12,7 +11,9 @@ export interface ContractListParams {
 export function useContracts(params?: ContractListParams) {
   return useQuery({
     queryKey: ['contracts', params],
+    queryFn: () => contractApi.getContracts(),
     queryFn: () => apiClient.get<Contract[]>('/api/contracts'),
     staleTime: 5 * 60 * 1000,
   });
 }
+

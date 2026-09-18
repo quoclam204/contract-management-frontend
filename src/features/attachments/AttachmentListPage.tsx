@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Filter,
   Plus,
+  FolderOpen,
 } from 'lucide-react';
 import { getAttachments, downloadAttachment } from './api/attachmentApi';
 import { Attachment } from './types/attachment.types';
@@ -22,7 +23,7 @@ import { Button } from '@/components/ui/Button';
 export const AttachmentListPage: React.FC = () => {
   const [searchInput, setSearchInput] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
-  const [selectedContractFilter, setSelectedContractFilter] = useState<string>('all');
+  const [selectedContractId, setSelectedContractId] = useState<string>('');
 
   // Modal upload state
   const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
@@ -36,6 +37,13 @@ export const AttachmentListPage: React.FC = () => {
   const { data: contractsData } = useContracts();
   const contracts = Array.isArray(contractsData) ? contractsData : [];
 
+  // TỰ ĐỘNG chọn hợp đồng đầu tiên làm mặc định khi danh sách hợp đồng tải xong
+  useEffect(() => {
+    if (contracts.length > 0 && !selectedContractId) {
+      setSelectedContractId(contracts[0].id);
+    }
+  }, [contracts, selectedContractId]);
+
   // Debounce search query by 400ms
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -45,7 +53,9 @@ export const AttachmentListPage: React.FC = () => {
     return () => clearTimeout(handler);
   }, [searchInput]);
 
-  // Query attachments list
+  const currentContract = contracts.find((c) => c.id === selectedContractId);
+
+  // Query attachments list - chỉ fetch khi có selectedContractId, tuyệt đối không bắn request hàng loạt
   const {
     data: attachments = [],
     isLoading,
@@ -54,12 +64,19 @@ export const AttachmentListPage: React.FC = () => {
     refetch,
     isFetching,
   } = useQuery({
-    queryKey: ['attachments', selectedContractFilter, debouncedSearch],
-    queryFn: () =>
-      getAttachments({
-        contractId: selectedContractFilter === 'all' ? undefined : selectedContractFilter,
+    queryKey: ['attachments', selectedContractId, debouncedSearch],
+    queryFn: () => {
+      if (!selectedContractId) return Promise.resolve([]);
+      return getAttachments({
+        contractId: selectedContractId,
         search: debouncedSearch,
-      }),
+        contractInfo: currentContract
+          ? { contractNumber: currentContract.contractNumber, contractTitle: currentContract.title }
+          : undefined,
+      });
+    },
+    enabled: Boolean(selectedContractId),
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleClearSearch = () => {
@@ -144,19 +161,22 @@ export const AttachmentListPage: React.FC = () => {
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-2 text-xs text-slate-500 shrink-0">
             <Filter className="w-3.5 h-3.5" />
-            <span>Lọc hợp đồng:</span>
+            <span>Hợp đồng:</span>
           </div>
           <select
-            value={selectedContractFilter}
-            onChange={(e) => setSelectedContractFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all cursor-pointer max-w-[220px] truncate"
+            value={selectedContractId}
+            onChange={(e) => setSelectedContractId(e.target.value)}
+            className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all cursor-pointer max-w-[280px] truncate"
           >
-            <option value="all">Tất cả hợp đồng</option>
-            {contracts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.contractNumber} — {c.title}
-              </option>
-            ))}
+            {contracts.length === 0 ? (
+              <option value="">-- Đang tải hợp đồng... --</option>
+            ) : (
+              contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.contractNumber} — {c.title}
+                </option>
+              ))
+            )}
           </select>
 
           {isFetching && !isLoading && (
@@ -190,21 +210,35 @@ export const AttachmentListPage: React.FC = () => {
         </div>
       )}
 
-      {/* Data Table */}
-      <AttachmentTable
-        attachments={attachments}
-        isLoading={isLoading}
-        onDownload={handleDownload}
-        onUploadNewVersion={(att) => setVersionModalItem(att)}
-        onViewHistory={(att) => setHistoryModalItem(att)}
-        onDelete={(att) => setDeleteModalItem(att)}
-      />
+      {/* Empty State when no contract selected OR Data Table */}
+      {!selectedContractId ? (
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-xs flex flex-col items-center justify-center">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 mb-4 shadow-2xs">
+            <FolderOpen className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-semibold text-slate-800 mb-1">
+            Vui lòng chọn hợp đồng để xem tệp đính kèm
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md">
+            Hệ thống quản lý tệp đính kèm theo từng hợp đồng cụ thể. Hãy chọn một hợp đồng từ danh sách phía trên để xem các tài liệu đính kèm.
+          </p>
+        </div>
+      ) : (
+        <AttachmentTable
+          attachments={attachments}
+          isLoading={isLoading}
+          onDownload={handleDownload}
+          onUploadNewVersion={(att) => setVersionModalItem(att)}
+          onViewHistory={(att) => setHistoryModalItem(att)}
+          onDelete={(att) => setDeleteModalItem(att)}
+        />
+      )}
 
       {/* Modals */}
       <UploadAttachmentModal
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        defaultContractId={selectedContractFilter !== 'all' ? selectedContractFilter : undefined}
+        defaultContractId={selectedContractId || undefined}
         onUploadSuccess={() => {
           refetch();
         }}
