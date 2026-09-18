@@ -48,7 +48,33 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       `Request failed with status ${response.status}`;
 
     if (response.status === 401) {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken && endpoint !== '/api/auth/refresh' && endpoint !== '/api/auth/login') {
+        try {
+          const refreshRes = await fetch(`${BASE_URL}/api/auth/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+
+          if (refreshRes.ok) {
+            const data = await refreshRes.json();
+            if (data.token) {
+              localStorage.setItem('token', data.token);
+              if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
+              }
+              // Retry original request with new token
+              return request<T>(endpoint, options);
+            }
+          }
+        } catch {
+          // Refresh failed, clean up below
+        }
+      }
+
       localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     }
     throw new ApiError(response.status, endpoint, message);
