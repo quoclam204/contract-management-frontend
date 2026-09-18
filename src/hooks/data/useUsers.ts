@@ -13,6 +13,7 @@ export interface UserDetail {
   isActive: boolean;
   createdAt: string;
   updatedAt?: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface PagedResult<T> {
