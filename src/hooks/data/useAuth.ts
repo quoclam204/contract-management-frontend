@@ -26,6 +26,8 @@ export function useLogin() {
           ? ROLE_NAMES[rawRole] || 'Staff'
           : (rawRole as UserRole) || 'Staff';
 
+      const savedAvatar = localStorage.getItem(`clm_avatar_${response.user.email}`);
+
       const user: User = {
         id: response.user.id,
         fullName: response.user.fullName,
@@ -35,11 +37,12 @@ export function useLogin() {
         roleName: response.user.roleName || roleStr,
         departmentId: response.user.departmentId,
         isActive: response.user.isActive,
+        avatarUrl: savedAvatar || undefined,
         createdAt: response.user.createdAt,
       };
 
-      login(user, response.token);
-      return { user, token: response.token };
+      login(user, response.token, response.refreshToken);
+      return { user, token: response.token, refreshToken: response.refreshToken };
     },
   });
 }

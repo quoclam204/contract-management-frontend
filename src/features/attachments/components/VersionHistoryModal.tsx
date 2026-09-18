@@ -20,9 +20,25 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
   attachment,
   onDownload,
 }) => {
-  if (!attachment) return null;
+  const sortedVersions = React.useMemo(() => {
+    return [...(attachment?.versions || [])].sort((a, b) => {
+      const verA = a.versionNumber ?? 0;
+      const verB = b.versionNumber ?? 0;
+      if (verB !== verA) {
+        return verB - verA; // Sắp xếp giảm dần theo số phiên bản (mới nhất lên đầu)
+      }
+      const dateA = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+      const dateB = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+      return dateB - dateA; // Ngày tải lên mới nhất lên đầu
+    });
+  }, [attachment?.versions]);
 
-  const versions = attachment.versions || [];
+  const maxVersionNumber = React.useMemo(() => {
+    if (!sortedVersions.length) return -1;
+    return Math.max(...sortedVersions.map((v) => v.versionNumber ?? 0));
+  }, [sortedVersions]);
+
+  if (!attachment) return null;
 
   return (
     <Modal
@@ -43,14 +59,14 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-slate-500">Tổng số:</span>
-            <Badge variant="info">{versions.length} phiên bản</Badge>
+            <Badge variant="info">{sortedVersions.length} phiên bản</Badge>
           </div>
         </div>
 
         {/* Timeline list */}
         <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
-          {versions.map((ver, idx) => {
-            const isLatest = idx === 0;
+          {sortedVersions.map((ver, idx) => {
+            const isLatest = ver.versionNumber === maxVersionNumber && idx === 0;
 
             return (
               <div
@@ -119,7 +135,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onDownload(attachment.id, ver.fileName)}
+                    onClick={() => onDownload(ver.id || attachment.id, ver.fileName)}
                     className="shrink-0 text-xs"
                     title={`Tải về phiên bản ${ver.versionString || `v${ver.versionNumber}`}`}
                   >

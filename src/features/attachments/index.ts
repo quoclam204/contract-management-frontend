@@ -4,6 +4,7 @@ export * from './utils/attachment.utils';
 export * from './components/AttachmentDropzone';
 export * from './components/AttachmentTable';
 export * from './components/UploadNewVersionModal';
+export * from './components/UploadAttachmentModal';
 export * from './components/DeleteAttachmentModal';
 export * from './components/VersionHistoryModal';
 export * from './AttachmentListPage';
