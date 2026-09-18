@@ -23,7 +23,7 @@ export const DeleteAttachmentModal: React.FC<DeleteAttachmentModalProps> = ({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!attachment) throw new Error('Không tìm thấy tệp đính kèm');
-      return await deleteAttachment(attachment.id);
+      return await deleteAttachment(attachment.id, attachment.contractId);
     },
     onSuccess: () => {
       message.success(`Đã xóa tệp "${attachment?.fileName || ''}" thành công!`);

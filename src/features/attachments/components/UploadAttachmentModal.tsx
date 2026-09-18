@@ -19,13 +19,6 @@ import { Button } from '@/components/ui/Button';
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
 const ACCEPTED_EXTENSIONS = ['pdf', 'docx', 'xlsx', 'png'];
 
-// Danh sách hợp đồng mẫu dự phòng khi chưa tải được từ backend
-const FALLBACK_CONTRACTS = [
-  { id: 'contract-1', contractNumber: 'HD-2025-001', title: 'Hợp đồng Mua bán Thiết bị Tin học' },
-  { id: 'contract-2', contractNumber: 'HD-2025-002', title: 'Hợp đồng Cung cấp Dịch vụ Phần mềm' },
-  { id: 'contract-3', contractNumber: 'HD-2025-003', title: 'Hợp đồng Thuê Văn phòng Keangnam' },
-];
-
 export interface UploadAttachmentModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -42,12 +35,9 @@ export const UploadAttachmentModal: React.FC<UploadAttachmentModalProps> = ({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Lấy danh sách hợp đồng
+  // Lấy danh sách hợp đồng thật từ backend
   const { data: contractsData } = useContracts();
-  const contracts =
-    Array.isArray(contractsData) && contractsData.length > 0
-      ? contractsData
-      : FALLBACK_CONTRACTS;
+  const contracts = Array.isArray(contractsData) ? contractsData : [];
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedContractId, setSelectedContractId] = useState<string>('');
@@ -64,7 +54,7 @@ export const UploadAttachmentModal: React.FC<UploadAttachmentModalProps> = ({
       const initialContractId =
         defaultContractId && contracts.some((c) => c.id === defaultContractId)
           ? defaultContractId
-          : contracts[0]?.id || '';
+          : '';
       setSelectedContractId(initialContractId);
     }
   }, [isOpen, defaultContractId, contracts]);
@@ -139,19 +129,13 @@ export const UploadAttachmentModal: React.FC<UploadAttachmentModalProps> = ({
       if (!selectedFile) throw new Error('Vui lòng chọn tệp');
       if (!selectedContractId) throw new Error('Vui lòng chọn hợp đồng liên kết');
 
-      const activeContract = contracts.find((c) => c.id === selectedContractId);
       const formData = new FormData();
       formData.append('file', selectedFile);
-      formData.append('contractId', selectedContractId);
-      if (activeContract) {
-        formData.append('contractNumber', activeContract.contractNumber);
-        formData.append('contractTitle', activeContract.title);
-      }
       if (notes.trim()) {
         formData.append('notes', notes.trim());
       }
 
-      return await uploadAttachment(formData);
+      return await uploadAttachment(selectedContractId, formData);
     },
     onSuccess: (newAttachment) => {
       message.success(`Đã tải lên tệp "${newAttachment.fileName}" thành công!`);
@@ -293,18 +277,25 @@ export const UploadAttachmentModal: React.FC<UploadAttachmentModalProps> = ({
           <select
             value={selectedContractId}
             onChange={(e) => setSelectedContractId(e.target.value)}
-            disabled={isLoading}
+            disabled={isLoading || contracts.length === 0}
             className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all cursor-pointer disabled:bg-slate-100 disabled:cursor-not-allowed"
           >
+            <option value="">-- Chọn hợp đồng liên kết * --</option>
             {contracts.map((contract) => (
               <option key={contract.id} value={contract.id}>
                 {contract.contractNumber} — {contract.title}
               </option>
             ))}
           </select>
-          <p className="text-[11px] text-slate-400 mt-1">
-            Tệp sẽ được lưu trữ và liên kết trực tiếp vào hồ sơ của hợp đồng được chọn.
-          </p>
+          {contracts.length === 0 ? (
+            <p className="text-[11px] text-amber-600 mt-1">
+              Chưa có dữ liệu hợp đồng từ máy chủ. Vui lòng tạo hợp đồng trước khi tải tệp.
+            </p>
+          ) : (
+            <p className="text-[11px] text-slate-400 mt-1">
+              Tệp sẽ được lưu trữ và liên kết trực tiếp vào hồ sơ của hợp đồng được chọn.
+            </p>
+          )}
         </div>
 
         {/* Notes Input */}

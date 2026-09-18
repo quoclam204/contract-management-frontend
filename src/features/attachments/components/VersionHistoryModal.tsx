@@ -135,7 +135,7 @@ export const VersionHistoryModal: React.FC<VersionHistoryModalProps> = ({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => onDownload(attachment.id, ver.fileName)}
+                    onClick={() => onDownload(ver.id || attachment.id, ver.fileName)}
                     className="shrink-0 text-xs"
                     title={`Tải về phiên bản ${ver.versionString || `v${ver.versionNumber}`}`}
                   >
