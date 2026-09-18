@@ -26,7 +26,9 @@ export function useLogin() {
           ? ROLE_NAMES[rawRole] || 'Staff'
           : (rawRole as UserRole) || 'Staff';
 
-      const savedAvatar = localStorage.getItem(`clm_avatar_${response.user.email}`);
+      const serverAvatar = response.user.avatarUrl;
+      const localAvatar = localStorage.getItem(`clm_avatar_${response.user.email}`);
+      const effectiveAvatar = serverAvatar || localAvatar || undefined;
 
       const user: User = {
         id: response.user.id,
@@ -37,7 +39,7 @@ export function useLogin() {
         roleName: response.user.roleName || roleStr,
         departmentId: response.user.departmentId,
         isActive: response.user.isActive,
-        avatarUrl: savedAvatar || undefined,
+        avatarUrl: effectiveAvatar,
         createdAt: response.user.createdAt,
       };
 
