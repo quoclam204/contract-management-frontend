@@ -31,6 +31,7 @@ export interface User {
   departmentId?: string | null;
   departmentName?: string | null;
   isActive?: boolean;
+  avatarUrl?: string;
   createdAt?: string;
 }
 
@@ -41,6 +42,7 @@ export interface LoginRequestDto {
 
 export interface LoginResponseDto {
   token: string;
+  refreshToken?: string;
   user: {
     id: string;
     fullName: string;
