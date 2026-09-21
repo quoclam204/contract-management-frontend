@@ -48,7 +48,7 @@ export const AIAnalysisPage: React.FC = () => {
 
   const contracts: Contract[] = useMemo(() => {
     if (!rawData) return [];
-    if (Array.isArray(rawData)) return rawData as Contract[];
+    if (Array.isArray(rawData)) return rawData as unknown as Contract[];
     const maybePaged = rawData as unknown as { items?: Contract[]; data?: Contract[] };
     if (Array.isArray(maybePaged.items)) return maybePaged.items;
     if (Array.isArray(maybePaged.data)) return maybePaged.data;

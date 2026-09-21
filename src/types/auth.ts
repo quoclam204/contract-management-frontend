@@ -52,6 +52,7 @@ export interface LoginResponseDto {
     departmentId: string | null;
     isActive: boolean;
     createdAt: string;
+    avatarUrl?: string | null;
   };
 }
 

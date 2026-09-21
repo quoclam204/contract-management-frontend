@@ -66,6 +66,14 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const currentRole = (user?.role || 'Staff') as UserRole;
   const roleConfig = ROLE_BADGES[currentRole] || { label: currentRole, className: 'bg-slate-100 text-slate-700' };
 
+  React.useEffect(() => {
+    if (isOpen && user) {
+      setFullName(user.fullName || '');
+      setAvatarUrl(user.avatarUrl || '');
+      setCustomAvatarInput(user.avatarUrl || '');
+    }
+  }, [isOpen, user]);
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSuccessMsg(null);
@@ -78,7 +86,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
     setIsSavingProfile(true);
     try {
-      // Save avatar to localStorage keyed by user email
+      // Call backend API to update profile in Database
+      await apiClient.put('/api/auth/profile', {
+        fullName: fullName.trim(),
+        avatarUrl: avatarUrl.trim() || null,
+      });
+
+      // Save avatar to localStorage keyed by user email as cache
       if (user?.email) {
         if (avatarUrl.trim()) {
           localStorage.setItem(`clm_avatar_${user.email}`, avatarUrl.trim());
@@ -87,9 +101,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
         }
       }
 
-      // Call backend API to update profile in Database
-      await apiClient.put('/api/auth/profile', { fullName: fullName.trim() });
-      
       // Update local store
       updateUser({
         fullName: fullName.trim(),
