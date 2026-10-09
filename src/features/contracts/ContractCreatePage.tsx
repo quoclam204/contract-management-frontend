@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { contractApi, CreateContractPayload } from './api/contractApi';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { useAuthStore } from '@/features/identity/useAuthStore';
 import {
   FileText,
   ArrowLeft,
@@ -17,6 +18,7 @@ import {
 export const ContractCreatePage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
   const [formData, setFormData] = useState<CreateContractPayload>({
     contractNumber: `HD-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
@@ -86,6 +88,7 @@ export const ContractCreatePage: React.FC = () => {
 
     createMutation.mutate({
       ...formData,
+      ownerId: user?.id,
       value: Number(formData.value) || 0,
       signedDate: formData.signedDate ? new Date(formData.signedDate).toISOString() : null,
       effectiveDate: new Date(formData.effectiveDate).toISOString(),

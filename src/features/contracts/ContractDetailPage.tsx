@@ -9,6 +9,7 @@ import { ApprovalService } from '@/services/approvalService';
 import { AIAnalysisWidget } from '@/features/ai-analysis/AIAnalysisWidget';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+import { useAuthStore } from '@/features/identity/useAuthStore';
 import {
   ArrowLeft,
   FileText,
@@ -26,43 +27,12 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-const mockCurrentUser = {
-  id: 'current-user-id',
-  role: 'Trưởng phòng',
-};
-
-const fetchApprovalSteps = async (): Promise<any[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return [
-    {
-      id: 'step-1',
-      stepOrder: 1,
-      approverRole: 'Trưởng phòng',
-      status: 'Pending',
-      comment: undefined,
-    },
-    {
-      id: 'step-2',
-      stepOrder: 2,
-      approverRole: 'Phó Giám đốc',
-      status: 'Upcoming',
-      comment: undefined,
-    },
-    {
-      id: 'step-3',
-      stepOrder: 3,
-      approverRole: 'Giám đốc',
-      status: 'Upcoming',
-      comment: undefined,
-    },
-  ];
-};
-
 export const ContractDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { user } = useAuthStore();
   const [steps, setSteps] = useState<any[]>([]);
   const [loadingSteps, setLoadingSteps] = useState<boolean>(true);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
@@ -79,6 +49,12 @@ export const ContractDetailPage: React.FC = () => {
     queryFn: () => (id ? contractApi.getContractById(id) : Promise.reject('No ID')),
     enabled: !!id,
   });
+
+  const isDraft = !contract || String(contract.status) === '0' || String(contract.status).toLowerCase() === 'draft';
+  const isApproved = contract ? (String(contract.status) === '2' || String(contract.status).toLowerCase() === 'approved') : false;
+  const isSigned = contract ? (String(contract.status) === '3' || String(contract.status).toLowerCase() === 'signed') : false;
+  const isActive = contract ? (String(contract.status) === '4' || String(contract.status).toLowerCase() === 'active') : false;
+  const isExpiring = contract ? (String(contract.status) === '5' || String(contract.status).toLowerCase() === 'expiring') : false;
 
   // State Machine Mutations
   const submitMutation = useMutation({
@@ -123,14 +99,28 @@ export const ContractDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!id) return;
+    if (isDraft) {
+      setSteps([]);
+      setLoadingSteps(false);
+      return;
+    }
     setLoadingSteps(true);
-    fetchApprovalSteps()
-      .then((fetchedSteps) => {
-        setSteps(fetchedSteps);
-        const pendingStep = fetchedSteps.find(
-          (s) => s.status === 'Pending' && s.approverRole === mockCurrentUser.role
-        );
-        setPendingStepId(pendingStep ? pendingStep.id : '');
+    ApprovalService.getProgressByContractId(id)
+      .then((progress) => {
+        if (progress && Array.isArray(progress.steps) && progress.steps.length > 0) {
+          const mapped = progress.steps.map((s: any) => ({
+            id: s.id,
+            stepOrder: s.stepOrder,
+            approverRole: s.approverRoleName || s.approverRole || 'Người duyệt',
+            status: s.decision === 1 ? 'Approved' : s.decision === 2 ? 'Rejected' : 'Pending',
+            comment: s.comment,
+          }));
+          setSteps(mapped);
+          const pendingStep = mapped.find((s: any) => s.status === 'Pending');
+          setPendingStepId(pendingStep ? pendingStep.id : '');
+        } else {
+          setSteps([]);
+        }
       })
       .catch(() => {
         setSteps([]);
@@ -138,7 +128,7 @@ export const ContractDetailPage: React.FC = () => {
       .finally(() => {
         setLoadingSteps(false);
       });
-  }, [id]);
+  }, [id, contract?.status, isDraft]);
 
   if (isLoading) {
     return (
@@ -167,11 +157,6 @@ export const ContractDetailPage: React.FC = () => {
     );
   }
 
-  const isDraft = String(contract.status) === '0' || String(contract.status).toLowerCase() === 'draft';
-  const isApproved = String(contract.status) === '2' || String(contract.status).toLowerCase() === 'approved';
-  const isSigned = String(contract.status) === '3' || String(contract.status).toLowerCase() === 'signed';
-  const isActive = String(contract.status) === '4' || String(contract.status).toLowerCase() === 'active';
-  const isExpiring = String(contract.status) === '5' || String(contract.status).toLowerCase() === 'expiring';
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -378,14 +363,18 @@ export const ContractDetailPage: React.FC = () => {
           <Clock className="w-4 h-4 text-amber-500" />
           Tiến Trình Phê Duyệt (Workflow Approval - Người 4)
         </h2>
-        {loadingSteps ? (
+        {isDraft ? (
+          <div className="text-center py-6 text-slate-500 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            Hợp đồng đang ở trạng thái <strong>Bản nháp (Draft)</strong>. Vui lòng bấm nút <strong>"Đệ Trình Phê Duyệt"</strong> ở góc trên để khởi động quy trình duyệt.
+          </div>
+        ) : loadingSteps ? (
           <div className="text-center py-6 text-slate-400 text-xs">Đang tải tiến trình phê duyệt...</div>
         ) : steps.length === 0 ? (
           <div className="text-center py-6 text-slate-400 text-xs">Chưa có quy trình phê duyệt cho hợp đồng này.</div>
         ) : (
           <ApprovalTimeline
             steps={steps}
-            currentUserRole={mockCurrentUser.role}
+            currentUserRole={user?.role || 'Staff'}
             onProcessApproval={(stepId) => {
               setPendingStepId(stepId);
               setOpenDialog(true);
@@ -401,8 +390,15 @@ export const ContractDetailPage: React.FC = () => {
           setPendingStepId('');
         }}
         approvalStepId={pendingStepId}
-        approverId={mockCurrentUser.id}
-        onSubmit={ApprovalService.processApprovalStep}
+        approverId={user?.id || ''}
+        onSubmit={async (data) => {
+          await ApprovalService.processApprovalStep({
+            ...data,
+            approverId: user?.id || data.approverId,
+          });
+          queryClient.invalidateQueries({ queryKey: ['contract', id] });
+          queryClient.invalidateQueries({ queryKey: ['contracts'] });
+        }}
       />
 
       {/* AI Analysis Widget Section (Người 5) */}
