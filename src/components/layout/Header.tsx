@@ -4,6 +4,7 @@ import { UserRole } from '@/types/auth';
 import { LogOut, Settings } from 'lucide-react';
 import { NotificationPopover } from './NotificationPopover';
 import { ProfileModal } from '@/features/identity/components/ProfileModal';
+import { resolveMediaUrl } from '@/api/client';
 
 const ROLE_COLORS: Record<UserRole, string> = {
   Admin: 'bg-rose-50 text-rose-700 border-rose-200',
@@ -16,6 +17,7 @@ export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
   const [profileOpen, setProfileOpen] = useState(false);
   const currentRole = user?.role || 'Staff';
+  const avatarSrc = resolveMediaUrl(user?.avatarUrl);
 
   return (
     <header className="h-14 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
@@ -35,10 +37,10 @@ export const Header: React.FC = () => {
           title="Quản lý tài khoản: Đổi tên, mật khẩu, ảnh đại diện"
           className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100/90 active:scale-[0.98] transition-all cursor-pointer border border-transparent hover:border-slate-200 group"
         >
-          {user?.avatarUrl ? (
+          {avatarSrc ? (
             <img
-              src={user.avatarUrl}
-              alt={user.fullName}
+              src={avatarSrc}
+              alt={user?.fullName || 'Avatar'}
               className="w-7 h-7 rounded-full object-cover ring-2 ring-slate-200 group-hover:ring-blue-400 transition-all"
             />
           ) : (

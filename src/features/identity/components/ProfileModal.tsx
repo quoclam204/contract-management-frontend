@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/features/identity/useAuthStore';
-import { apiClient } from '@/api/client';
+import { apiClient, resolveMediaUrl } from '@/api/client';
 import { UserRole } from '@/types/auth';
 import {
   User,
@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  UploadCloud,
 } from 'lucide-react';
 
 interface ProfileModalProps {
@@ -49,6 +50,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
   const [fullName, setFullName] = useState(user?.fullName || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
   const [customAvatarInput, setCustomAvatarInput] = useState(user?.avatarUrl || '');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileSuccessMsg, setProfileSuccessMsg] = useState<string | null>(null);
   const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
@@ -71,8 +74,34 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       setFullName(user.fullName || '');
       setAvatarUrl(user.avatarUrl || '');
       setCustomAvatarInput(user.avatarUrl || '');
+      setSelectedFile(null);
     }
   }, [isOpen, user]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setProfileErrorMsg('Vui lòng chọn tệp hình ảnh (.jpg, .png, .webp).');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setProfileErrorMsg('Dung lượng ảnh tối đa là 5MB.');
+      return;
+    }
+
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setAvatarUrl(dataUrl);
+      setCustomAvatarInput('');
+      setProfileErrorMsg(null);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,28 +114,49 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
     }
 
     setIsSavingProfile(true);
+    let finalAvatarUrl = avatarUrl.trim();
+
     try {
-      // Call backend API to update profile in Database
+      // 1. Nếu người dùng chọn file ảnh từ máy tính, upload lên /api/auth/avatar
+      if (selectedFile) {
+        try {
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          const uploadRes = await apiClient.post<{ avatarUrl: string }>('/api/auth/avatar', formData);
+          if (uploadRes?.avatarUrl) {
+            finalAvatarUrl = uploadRes.avatarUrl;
+          }
+        } catch (uploadErr) {
+          console.warn('Lưu ảnh lên backend không thành công, tiếp tục lưu cục bộ:', uploadErr);
+        }
+      }
+
+      // 2. Cập nhật thông tin hồ sơ vào Database qua /api/auth/profile
+      // Lưu ý: nếu avatar là chuỗi data: base64 dài thì không gửi vào DB để tránh vượt NVARCHAR(1000)
+      const dbAvatarUrl = finalAvatarUrl.startsWith('data:') ? null : finalAvatarUrl || null;
+
       await apiClient.put('/api/auth/profile', {
         fullName: fullName.trim(),
-        avatarUrl: avatarUrl.trim() || null,
+        avatarUrl: dbAvatarUrl,
       });
 
-      // Save avatar to localStorage keyed by user email as cache
+      // 3. Lưu avatar vào localStorage theo email để cache hiển thị tức thì
       if (user?.email) {
-        if (avatarUrl.trim()) {
-          localStorage.setItem(`clm_avatar_${user.email}`, avatarUrl.trim());
+        if (finalAvatarUrl) {
+          localStorage.setItem(`clm_avatar_${user.email}`, finalAvatarUrl);
         } else {
           localStorage.removeItem(`clm_avatar_${user.email}`);
         }
       }
 
-      // Update local store
+      // 4. Cập nhật store hiện tại
       updateUser({
         fullName: fullName.trim(),
-        avatarUrl: avatarUrl.trim() || undefined,
+        avatarUrl: finalAvatarUrl || undefined,
       });
-      setProfileSuccessMsg('Cập nhật thông tin vào cơ sở dữ liệu thành công!');
+
+      setProfileSuccessMsg('Cập nhật thông tin và ảnh đại diện thành công!');
+      setSelectedFile(null);
       setTimeout(() => setProfileSuccessMsg(null), 3500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Chưa kết nối được API backend mới.';
@@ -154,6 +204,8 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
       setIsChangingPass(false);
     }
   };
+
+  const resolvedAvatar = resolveMediaUrl(avatarUrl);
 
   return (
     <Modal
@@ -211,30 +263,73 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
 
             {/* Avatar Preview & Selection */}
             <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <div className="relative group">
-                {avatarUrl ? (
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+
+              <div
+                className="relative group cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                title="Bấm vào đây để tải ảnh đại diện từ máy tính"
+              >
+                {resolvedAvatar ? (
                   <img
-                    src={avatarUrl}
+                    src={resolvedAvatar}
                     alt="Avatar"
-                    className="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-md"
+                    className="w-20 h-20 rounded-full object-cover ring-4 ring-white shadow-md transition-transform group-hover:scale-105"
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-2xl font-bold flex items-center justify-center ring-4 ring-white shadow-md">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white text-2xl font-bold flex items-center justify-center ring-4 ring-white shadow-md transition-transform group-hover:scale-105">
                     {fullName ? fullName.charAt(0).toUpperCase() : user?.email?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
-                <div className="absolute bottom-0 right-0 p-1.5 bg-blue-600 text-white rounded-full shadow-sm">
+                <div className="absolute bottom-0 right-0 p-1.5 bg-blue-600 group-hover:bg-blue-700 text-white rounded-full shadow-sm ring-2 ring-white transition-colors">
                   <Camera className="w-3.5 h-3.5" />
                 </div>
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-semibold">
+                  Đổi ảnh
+                </div>
+              </div>
+
+              {/* Upload buttons */}
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Tải ảnh từ máy tính</span>
+                </Button>
+                {avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvatarUrl('');
+                      setCustomAvatarInput('');
+                      setSelectedFile(null);
+                    }}
+                    className="text-[11px] text-slate-400 hover:text-rose-600 px-2 py-1 transition-colors cursor-pointer"
+                  >
+                    Xóa ảnh
+                  </button>
+                )}
               </div>
 
               {/* Quick Preset Avatars */}
               <div className="mt-3 text-center">
                 <p className="text-[11px] font-semibold text-slate-500 mb-1.5 flex items-center justify-center gap-1">
                   <Sparkles className="w-3 h-3 text-amber-500" />
-                  Chọn nhanh ảnh đại diện mẫu:
+                  Hoặc chọn nhanh ảnh đại diện mẫu:
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-center flex-wrap">
                   {AVATAR_PRESETS.map((url, idx) => (
                     <button
                       type="button"
@@ -242,26 +337,15 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                       onClick={() => {
                         setAvatarUrl(url);
                         setCustomAvatarInput(url);
+                        setSelectedFile(null);
                       }}
                       className={`w-7 h-7 rounded-full overflow-hidden border-2 transition-transform hover:scale-110 cursor-pointer ${
-                        avatarUrl === url ? 'border-blue-600 ring-2 ring-blue-500/30' : 'border-slate-200'
+                        avatarUrl === url ? 'border-blue-600 ring-2 ring-blue-500/30 scale-105' : 'border-slate-200'
                       }`}
                     >
                       <img src={url} alt={`Preset ${idx + 1}`} className="w-full h-full object-cover" />
                     </button>
                   ))}
-                  {avatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAvatarUrl('');
-                        setCustomAvatarInput('');
-                      }}
-                      className="text-[10px] text-slate-400 hover:text-rose-500 ml-1 cursor-pointer underline"
-                    >
-                      Xóa ảnh
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

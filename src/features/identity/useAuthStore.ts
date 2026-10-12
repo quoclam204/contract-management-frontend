@@ -16,7 +16,15 @@ interface AuthState {
 const getStoredUser = (): User | null => {
   try {
     const raw = localStorage.getItem('user');
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    if (user?.email && !user.avatarUrl) {
+      const cachedAvatar = localStorage.getItem(`clm_avatar_${user.email}`);
+      if (cachedAvatar) {
+        user.avatarUrl = cachedAvatar;
+      }
+    }
+    return user;
   } catch {
     return null;
   }
@@ -29,6 +37,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: !!localStorage.getItem('token'),
 
   login: (user, token, refreshToken) => {
+    if (user?.email && !user.avatarUrl) {
+      const cachedAvatar = localStorage.getItem(`clm_avatar_${user.email}`);
+      if (cachedAvatar) {
+        user = { ...user, avatarUrl: cachedAvatar };
+      }
+    }
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(user));
     if (refreshToken) {
