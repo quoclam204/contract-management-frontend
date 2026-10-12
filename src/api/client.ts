@@ -28,10 +28,20 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options.headers,
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      endpoint,
+      `Không thể kết nối Backend tại ${BASE_URL}. Vui lòng kiểm tra API đang chạy.`
+    );
+  }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -122,7 +132,6 @@ export const apiClient = {
       body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     });
   },
-
   async getBlob(
     endpoint: string,
     options?: RequestInit

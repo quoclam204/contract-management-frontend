@@ -24,25 +24,37 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import {
+  getContractsForSignature,
   getPendingApprovals,
   processApprovalDecision,
 } from './services/workflowApi';
 import {
   ApprovalDecision,
   APPROVER_ROLE_MAP,
+  type ContractForSignatureDto,
   type PendingApprovalItemDto,
 } from './types/workflow.types';
 import { RejectDecisionModal } from './components/RejectDecisionModal';
 import { SignContractModal } from './components/SignContractModal';
 import { ApprovalTimelineModal } from './components/ApprovalTimelineModal';
+import { useAuthStore } from '@/features/identity/useAuthStore';
+
+const isApprovedContract = (contract: ContractForSignatureDto): boolean =>
+  contract.status === 2 || String(contract.status).toLowerCase() === 'approved';
 
 export const ApprovalFlowPage: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('pending');
+  const currentUser = useAuthStore((state) => state.user);
 
   // Modal states
   const [rejectItem, setRejectItem] = useState<PendingApprovalItemDto | null>(null);
-  const [signContractData, setSignContractData] = useState<{ id: string; number?: string; title?: string } | null>(null);
+  const [signContractData, setSignContractData] = useState<{
+    id: string;
+    number?: string;
+    title?: string;
+    partnerId?: string;
+  } | null>(null);
   const [timelineContractId, setTimelineContractId] = useState<string | null>(null);
 
   // Fetch Pending Approvals
@@ -57,19 +69,43 @@ export const ApprovalFlowPage: React.FC = () => {
     queryFn: () => getPendingApprovals(),
   });
 
+  // Fetch danh sách hợp đồng thực tế từ hệ thống phục vụ Ký số
+  const {
+    data: contractList = [],
+    isLoading: isLoadingContracts,
+    isError: isContractsError,
+    error: contractsError,
+    refetch: refetchContracts,
+  } = useQuery({
+    queryKey: ['contracts-for-signatures'],
+    queryFn: getContractsForSignature,
+  });
+
+  const signableContracts = contractList.filter(isApprovedContract);
+
   // Approve Mutation
   const approveMutation = useMutation({
     mutationFn: async (item: PendingApprovalItemDto) => {
       return processApprovalDecision({
         approvalStepId: item.approvalStepId,
-        approverId: item.approverId || '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        approverId: currentUser?.id || item.approverId || '897a44a7-000f-4b89-a70e-feb4a14b8c96',
         decision: ApprovalDecision.Approved,
         comment: 'Đã phê duyệt đạt yêu cầu.',
       });
     },
-    onSuccess: () => {
-      message.success('Đã phê duyệt thành công bước xét duyệt!');
-      queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+    onSuccess: async (progress) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pending-approvals'] }),
+        queryClient.invalidateQueries({ queryKey: ['contracts-for-signatures'] }),
+      ]);
+
+      if (progress.overallStatus === 'Approved') {
+        message.success('Hợp đồng đã hoàn tất phê duyệt và sẵn sàng ký số.');
+        setActiveTab('signature');
+        return;
+      }
+
+      message.success('Đã phê duyệt bước hiện tại. Hợp đồng đang chờ bước tiếp theo.');
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Lỗi khi thực hiện phê duyệt.';
@@ -82,7 +118,7 @@ export const ApprovalFlowPage: React.FC = () => {
     mutationFn: async ({ item, comment }: { item: PendingApprovalItemDto; comment: string }) => {
       return processApprovalDecision({
         approvalStepId: item.approvalStepId,
-        approverId: item.approverId || '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        approverId: currentUser?.id || item.approverId || '897a44a7-000f-4b89-a70e-feb4a14b8c96',
         decision: ApprovalDecision.Rejected,
         comment,
       });
@@ -311,7 +347,7 @@ export const ApprovalFlowPage: React.FC = () => {
               ),
               children: (
                 <div className="py-4 space-y-4">
-                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">Thao tác Ký số Trực tiếp</h3>
                       <p className="text-xs text-slate-500 mt-0.5">
@@ -321,15 +357,24 @@ export const ApprovalFlowPage: React.FC = () => {
                     <Button
                       type="primary"
                       icon={<PenTool className="w-4 h-4" />}
-                      onClick={() =>
+                      onClick={() => {
+                        const targetContract = signableContracts[0];
+
+                        if (!targetContract) {
+                          message.warning('Chưa có hợp đồng hoàn tất toàn bộ quy trình phê duyệt để ký số.');
+                          return;
+                        }
+
                         setSignContractData({
-                          id: pendingList[0]?.contractId || '11111111-1111-1111-1111-111111111111',
-                          number: 'HD-DEMO-2026',
-                          title: 'Hợp đồng mua bán dịch vụ công nghệ',
-                        })
-                      }
+                          id: targetContract.id,
+                          number: targetContract.contractNumber || 'HD-CURRENT',
+                          title: targetContract.title || 'Hợp đồng hiện tại',
+                          partnerId: targetContract.partnerId,
+                        });
+                      }}
+                      disabled={isLoadingContracts || isContractsError || signableContracts.length === 0}
                     >
-                      Ký Số Hợp Đồng
+                      Ký Số Hợp Đồng Nhanh
                     </Button>
                   </div>
 
@@ -339,6 +384,109 @@ export const ApprovalFlowPage: React.FC = () => {
                     message="Quy trình Ký số sau khi hoàn tất Phê duyệt"
                     description="Sau khi hợp đồng trải qua tất cả các bước xét duyệt (Approved), hệ thống chuyển sang giai đoạn Ký số. Khi cả bên Nội bộ và Đối tác hoàn tất ký kết, hệ thống tự động kích hoạt trạng thái Có hiệu lực (Active) cho hợp đồng."
                   />
+
+                  {/* Danh sách hợp đồng thực tế sẵn sàng cho việc ký kết */}
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-slate-800">
+                        Hợp Đồng Đã Duyệt Chờ Ký ({signableContracts.length})
+                      </h4>
+                      <Button
+                        size="small"
+                        icon={<RefreshCw className="w-3.5 h-3.5" />}
+                        onClick={() => refetchContracts()}
+                        loading={isLoadingContracts}
+                      >
+                        Làm mới
+                      </Button>
+                    </div>
+
+                    {isLoadingContracts && (
+                      <div className="py-8 text-center">
+                        <Spin />
+                      </div>
+                    )}
+
+                    {isContractsError && (
+                      <Alert
+                        type="error"
+                        showIcon
+                        message="Không thể tải danh sách hợp đồng chờ ký"
+                        description={
+                          contractsError instanceof Error
+                            ? contractsError.message
+                            : 'Không thể kết nối Backend.'
+                        }
+                        action={
+                          <Button size="small" onClick={() => refetchContracts()}>
+                            Thử lại
+                          </Button>
+                        }
+                      />
+                    )}
+
+                    {!isLoadingContracts && !isContractsError && signableContracts.length === 0 && (
+                      <div className="text-center py-6 text-slate-400 text-xs">
+                        Chưa có hợp đồng hoàn tất tất cả các bước phê duyệt.
+                      </div>
+                    )}
+
+                    {!isLoadingContracts && !isContractsError && signableContracts.length > 0 && (
+                      <div className="grid grid-cols-1 gap-3">
+                        {signableContracts.map((c) => (
+                          <div
+                            key={c.id}
+                            className="bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono font-bold text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200">
+                                  {c.contractNumber || 'HD-Chưa có mã'}
+                                </span>
+                                <span className="text-sm font-semibold text-slate-800">
+                                  {c.title || 'Hợp đồng kinh tế'}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                Giá trị:{' '}
+                                <span className="font-semibold text-slate-700">
+                                  {Number(c.value || 0).toLocaleString('vi-VN')} VND
+                                </span>{' '}
+                                • Ngày hiệu lực:{' '}
+                                {c.effectiveDate
+                                  ? new Date(c.effectiveDate).toLocaleDateString('vi-VN')
+                                  : 'Chưa thiết lập'}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <Button
+                                icon={<GitCommit className="w-4 h-4 text-slate-500" />}
+                                onClick={() => setTimelineContractId(c.id)}
+                              >
+                                Tiến trình
+                              </Button>
+                              <Button
+                                type="primary"
+                                className="bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+                                icon={<PenTool className="w-4 h-4" />}
+                                onClick={() =>
+                                  setSignContractData({
+                                    id: c.id,
+                                    number: c.contractNumber,
+                                    title: c.title,
+                                    partnerId: c.partnerId,
+                                  })
+                                }
+                              >
+                                Ký Số Hợp Đồng
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ),
             },
@@ -365,8 +513,10 @@ export const ApprovalFlowPage: React.FC = () => {
           contractId={signContractData.id}
           contractNumber={signContractData.number}
           contractTitle={signContractData.title}
+          partnerId={signContractData.partnerId}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
+            queryClient.invalidateQueries({ queryKey: ['contracts-for-signatures'] });
           }}
         />
       )}
