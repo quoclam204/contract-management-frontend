@@ -80,7 +80,11 @@ export async function createPartner(payload: CreatePartnerDto): Promise<Partner>
 
 export async function updatePartner(id: string, payload: UpdatePartnerDto): Promise<Partner> {
   try {
-    return await apiClient.put<Partner>(`/api/v1/partners/${id}`, payload);
+    const body: UpdatePartnerDto = {
+      ...payload,
+      id: payload.id || id,
+    };
+    return await apiClient.put<Partner>(`/api/v1/partners/${id}`, body);
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw new Error(error.message || `Lỗi máy chủ (${error.status})`);
@@ -97,5 +101,36 @@ export async function updatePartner(id: string, payload: UpdatePartnerDto): Prom
     }
 
     throw new Error('Đã xảy ra lỗi không xác định khi cập nhật đối tác.');
+  }
+}
+
+export async function deletePartner(id: string): Promise<void> {
+  try {
+    try {
+      await apiClient.delete<void>(`/api/v1/partners/${id}`);
+      return;
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 404) {
+        await apiClient.delete<void>(`/api/partners/${id}`);
+        return;
+      }
+      throw err;
+    }
+  } catch (error: unknown) {
+    if (error instanceof ApiError) {
+      throw new Error(error.message || `Lỗi máy chủ (${error.status})`);
+    }
+
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new Error(
+        'Không thể kết nối đến máy chủ backend. Vui lòng đảm bảo dịch vụ API đang hoạt động.'
+      );
+    }
+
+    if (error instanceof Error) {
+      throw new Error(error.message || 'Không thể xóa đối tác. Vui lòng thử lại sau.');
+    }
+
+    throw new Error('Đã xảy ra lỗi không xác định khi xóa đối tác.');
   }
 }

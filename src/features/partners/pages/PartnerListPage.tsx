@@ -7,6 +7,7 @@ import { PartnerTable } from '../components/PartnerTable';
 import { PartnerPagination } from '../components/PartnerPagination';
 import { PartnerFormModal } from '../components/PartnerFormModal';
 import { PartnerDetailModal } from '../components/PartnerDetailModal';
+import { DeletePartnerModal } from '../components/DeletePartnerModal';
 import { Button } from '@/components/ui/Button';
 
 export const PartnerListPage: React.FC = () => {
@@ -22,6 +23,10 @@ export const PartnerListPage: React.FC = () => {
   // Modal detail view state
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedPartnerForView, setSelectedPartnerForView] = useState<Partner | null>(null);
+
+  // Modal delete confirmation state
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedPartnerForDelete, setSelectedPartnerForDelete] = useState<Partner | null>(null);
 
   // Debounce search input by 400ms
   useEffect(() => {
@@ -98,7 +103,13 @@ export const PartnerListPage: React.FC = () => {
   };
 
   const handleDelete = (partner: Partner) => {
-    alert(`Xác nhận xóa đối tác: ${partner.name}`);
+    setSelectedPartnerForDelete(partner);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setIsDeleteModalOpen(false);
+    setSelectedPartnerForDelete(null);
   };
 
   return (
@@ -216,6 +227,13 @@ export const PartnerListPage: React.FC = () => {
         onClose={handleCloseDetailModal}
         partner={selectedPartnerForView}
         onEdit={handleEditFromDetail}
+      />
+
+      {/* Delete Partner Confirmation Modal */}
+      <DeletePartnerModal
+        isOpen={isDeleteModalOpen}
+        onClose={handleCloseDeleteModal}
+        partner={selectedPartnerForDelete}
       />
     </div>
   );

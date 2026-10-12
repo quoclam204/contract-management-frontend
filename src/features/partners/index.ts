@@ -6,3 +6,4 @@ export * from './components/PartnerTable';
 export * from './components/PartnerPagination';
 export * from './components/PartnerFormModal';
 export * from './components/PartnerDetailModal';
+export * from './components/DeletePartnerModal';

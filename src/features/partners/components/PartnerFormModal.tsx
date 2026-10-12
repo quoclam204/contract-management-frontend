@@ -70,7 +70,14 @@ export const PartnerFormModal: React.FC<PartnerFormModalProps> = ({
   const mutation = useMutation({
     mutationFn: async (data: PartnerFormData) => {
       if (isEdit && initialData?.id) {
-        return await updatePartner(initialData.id, data);
+        return await updatePartner(initialData.id, {
+          id: initialData.id,
+          name: data.name,
+          taxCode: data.taxCode,
+          representative: data.representative,
+          contactEmail: data.contactEmail,
+          address: data.address,
+        });
       }
       return await createPartner(data);
     },

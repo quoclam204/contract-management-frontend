@@ -33,9 +33,15 @@ export interface CreatePartnerDto {
 }
 
 export interface UpdatePartnerDto {
+  id: string;
   name: string;
   taxCode: string;
   representative: string;
   contactEmail: string;
+  email?: string;
   address: string;
 }
+
+export type UpdatePartnerPayload = UpdatePartnerDto;
+export type UpdatePartnerRequest = UpdatePartnerDto;
+
