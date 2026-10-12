@@ -15,7 +15,6 @@ import { useAuthStore } from '@/features/identity/useAuthStore';
 import { AIAnalysisWidget } from '@/features/ai-analysis/AIAnalysisWidget';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
-import { useAuthStore } from '@/features/identity/useAuthStore';
 import {
   ArrowLeft,
   FileText,
@@ -38,12 +37,9 @@ export const ContractDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { user } = useAuthStore();
-  const [steps, setSteps] = useState<any[]>([]);
-  const [loadingSteps, setLoadingSteps] = useState<boolean>(true);
+  const currentUser = useAuthStore((state) => state.user);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [pendingStepId, setPendingStepId] = useState<string>('');
-  const currentUser = useAuthStore((state) => state.user);
 
   // Fetch contract detail
   const {
@@ -57,6 +53,12 @@ export const ContractDetailPage: React.FC = () => {
     enabled: !!id,
   });
 
+  const isDraft = !contract || String(contract.status) === '0' || String(contract.status).toLowerCase() === 'draft';
+  const isApproved = contract ? (String(contract.status) === '2' || String(contract.status).toLowerCase() === 'approved') : false;
+  const isSigned = contract ? (String(contract.status) === '3' || String(contract.status).toLowerCase() === 'signed') : false;
+  const isActive = contract ? (String(contract.status) === '4' || String(contract.status).toLowerCase() === 'active') : false;
+  const isExpiring = contract ? (String(contract.status) === '5' || String(contract.status).toLowerCase() === 'expiring') : false;
+
   const {
     data: approvalProgress,
     isLoading: loadingSteps,
@@ -64,7 +66,7 @@ export const ContractDetailPage: React.FC = () => {
   } = useQuery({
     queryKey: ['approval-progress', id],
     queryFn: () => ApprovalService.getContractApprovalProgress(id!),
-    enabled: !!id,
+    enabled: !!id && !isDraft,
     retry: false,
     refetchInterval: (query) => (query.state.data ? false : 3000),
   });
@@ -89,11 +91,6 @@ export const ContractDetailPage: React.FC = () => {
       comment: step.comment ?? undefined,
     };
   });
-  const isDraft = !contract || String(contract.status) === '0' || String(contract.status).toLowerCase() === 'draft';
-  const isApproved = contract ? (String(contract.status) === '2' || String(contract.status).toLowerCase() === 'approved') : false;
-  const isSigned = contract ? (String(contract.status) === '3' || String(contract.status).toLowerCase() === 'signed') : false;
-  const isActive = contract ? (String(contract.status) === '4' || String(contract.status).toLowerCase() === 'active') : false;
-  const isExpiring = contract ? (String(contract.status) === '5' || String(contract.status).toLowerCase() === 'expiring') : false;
 
   // State Machine Mutations
   const submitMutation = useMutation({
@@ -101,6 +98,8 @@ export const ContractDetailPage: React.FC = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract', id] });
       queryClient.invalidateQueries({ queryKey: ['contracts'] });
+      queryClient.invalidateQueries({ queryKey: ['approval-progress', id] });
+      queryClient.invalidateQueries({ queryKey: ['pending-approvals'] });
     },
   });
 
@@ -136,38 +135,7 @@ export const ContractDetailPage: React.FC = () => {
     },
   });
 
-  useEffect(() => {
-    if (!id) return;
-    if (isDraft) {
-      setSteps([]);
-      setLoadingSteps(false);
-      return;
-    }
-    setLoadingSteps(true);
-    ApprovalService.getProgressByContractId(id)
-      .then((progress) => {
-        if (progress && Array.isArray(progress.steps) && progress.steps.length > 0) {
-          const mapped = progress.steps.map((s: any) => ({
-            id: s.id,
-            stepOrder: s.stepOrder,
-            approverRole: s.approverRoleName || s.approverRole || 'Người duyệt',
-            status: s.decision === 1 ? 'Approved' : s.decision === 2 ? 'Rejected' : 'Pending',
-            comment: s.comment,
-          }));
-          setSteps(mapped);
-          const pendingStep = mapped.find((s: any) => s.status === 'Pending');
-          setPendingStepId(pendingStep ? pendingStep.id : '');
-        } else {
-          setSteps([]);
-        }
-      })
-      .catch(() => {
-        setSteps([]);
-      })
-      .finally(() => {
-        setLoadingSteps(false);
-      });
-  }, [id, contract?.status, isDraft]);
+
 
   if (isLoading) {
     return (
@@ -415,7 +383,6 @@ export const ContractDetailPage: React.FC = () => {
             steps={steps}
             currentUserRole={currentUser?.role ?? ''}
             currentUserId={currentUser?.id}
-            currentUserRole={user?.role || 'Staff'}
             onProcessApproval={(stepId) => {
               setPendingStepId(stepId);
               setOpenDialog(true);
@@ -445,14 +412,6 @@ export const ContractDetailPage: React.FC = () => {
           ]);
           await refetchApprovalProgress();
           message.success('Đã cập nhật quyết định phê duyệt.');
-        approverId={user?.id || ''}
-        onSubmit={async (data) => {
-          await ApprovalService.processApprovalStep({
-            ...data,
-            approverId: user?.id || data.approverId,
-          });
-          queryClient.invalidateQueries({ queryKey: ['contract', id] });
-          queryClient.invalidateQueries({ queryKey: ['contracts'] });
         }}
       />
 
