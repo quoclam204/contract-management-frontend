@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { contractApi } from './api/contractApi';
 import { StateMachineVisualizer } from './StateMachineVisualizer';
-import { ApprovalTimeline } from '@/components/approval/ApprovalTimeline';
+import {
+  ApprovalTimeline,
+  type ApprovalTimelineStep,
+} from '@/components/approval/ApprovalTimeline';
 import { ApprovalActionDialog } from '@/components/approval/ApprovalActionDialog';
 import { ApprovalService } from '@/services/approvalService';
+import { ApprovalDecision } from '@/features/workflows/types/workflow.types';
+import { useAuthStore } from '@/features/identity/useAuthStore';
 import { AIAnalysisWidget } from '@/features/ai-analysis/AIAnalysisWidget';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +43,7 @@ export const ContractDetailPage: React.FC = () => {
   const [loadingSteps, setLoadingSteps] = useState<boolean>(true);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [pendingStepId, setPendingStepId] = useState<string>('');
+  const currentUser = useAuthStore((state) => state.user);
 
   // Fetch contract detail
   const {
@@ -50,6 +57,38 @@ export const ContractDetailPage: React.FC = () => {
     enabled: !!id,
   });
 
+  const {
+    data: approvalProgress,
+    isLoading: loadingSteps,
+    refetch: refetchApprovalProgress,
+  } = useQuery({
+    queryKey: ['approval-progress', id],
+    queryFn: () => ApprovalService.getContractApprovalProgress(id!),
+    enabled: !!id,
+    retry: false,
+    refetchInterval: (query) => (query.state.data ? false : 3000),
+  });
+
+  const steps: ApprovalTimelineStep[] = (approvalProgress?.steps ?? []).map((step) => {
+    let status: ApprovalTimelineStep['status'] = 'Upcoming';
+
+    if (step.decision === ApprovalDecision.Approved) {
+      status = 'Approved';
+    } else if (step.decision === ApprovalDecision.Rejected) {
+      status = 'Rejected';
+    } else if (approvalProgress?.currentPendingStepOrder === step.stepOrder) {
+      status = 'Pending';
+    }
+
+    return {
+      id: step.id,
+      stepOrder: step.stepOrder,
+      approverRole: step.approverRoleName ?? `Vai trò ${step.approverRole}`,
+      approverId: step.approverId,
+      status,
+      comment: step.comment ?? undefined,
+    };
+  });
   const isDraft = !contract || String(contract.status) === '0' || String(contract.status).toLowerCase() === 'draft';
   const isApproved = contract ? (String(contract.status) === '2' || String(contract.status).toLowerCase() === 'approved') : false;
   const isSigned = contract ? (String(contract.status) === '3' || String(contract.status).toLowerCase() === 'signed') : false;
@@ -374,6 +413,8 @@ export const ContractDetailPage: React.FC = () => {
         ) : (
           <ApprovalTimeline
             steps={steps}
+            currentUserRole={currentUser?.role ?? ''}
+            currentUserId={currentUser?.id}
             currentUserRole={user?.role || 'Staff'}
             onProcessApproval={(stepId) => {
               setPendingStepId(stepId);
@@ -390,6 +431,20 @@ export const ContractDetailPage: React.FC = () => {
           setPendingStepId('');
         }}
         approvalStepId={pendingStepId}
+        approverId={
+          currentUser?.id ?? steps.find((step) => step.id === pendingStepId)?.approverId ?? ''
+        }
+        onSubmit={async (data) => {
+          await ApprovalService.processApprovalStep(data);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['approval-progress', id] }),
+            queryClient.invalidateQueries({ queryKey: ['pending-approvals'] }),
+            queryClient.invalidateQueries({ queryKey: ['contract', id] }),
+            queryClient.invalidateQueries({ queryKey: ['contracts'] }),
+            queryClient.invalidateQueries({ queryKey: ['contracts-for-signatures'] }),
+          ]);
+          await refetchApprovalProgress();
+          message.success('Đã cập nhật quyết định phê duyệt.');
         approverId={user?.id || ''}
         onSubmit={async (data) => {
           await ApprovalService.processApprovalStep({

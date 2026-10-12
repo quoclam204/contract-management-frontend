@@ -11,6 +11,7 @@ import type {
   CreateSignatureRequest,
   SignatureDto,
   ContractSignatureStatusDto,
+  ContractForSignatureDto,
 } from '../types/workflow.types';
 
 // ==================== WORKFLOWS ====================
@@ -147,5 +148,12 @@ export async function getSignaturesByContractId(contractId: string): Promise<Sig
  * Lấy tổng quan trạng thái ký của hợp đồng
  */
 export async function getSignatureStatus(contractId: string): Promise<ContractSignatureStatusDto> {
-  return apiClient.get<ContractSignatureStatusDto>(`/api/signatures/status/${contractId}`);
+  return apiClient.get<ContractSignatureStatusDto>(`/api/signatures/contract/${contractId}/status`);
+}
+
+/**
+ * Lấy danh sách hợp đồng để xác định các hợp đồng đã duyệt và sẵn sàng ký.
+ */
+export async function getContractsForSignature(): Promise<ContractForSignatureDto[]> {
+  return apiClient.get<ContractForSignatureDto[]>('/api/contracts');
 }

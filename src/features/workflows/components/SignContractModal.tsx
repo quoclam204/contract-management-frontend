@@ -1,8 +1,14 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, Select, Radio, Alert, message } from 'antd';
 import { PenTool, KeyRound, ShieldCheck } from 'lucide-react';
-import { SignerType, SignatureMethod } from '../types/workflow.types';
-import { signContract } from '../services/workflowApi';
+import {
+  SignerType,
+  SignatureMethod,
+  type ContractSignatureStatusDto,
+} from '../types/workflow.types';
+import { getSignatureStatus, signContract } from '../services/workflowApi';
+
+import { useAuthStore } from '@/features/identity/useAuthStore';
 
 interface SignContractModalProps {
   isOpen: boolean;
@@ -10,7 +16,18 @@ interface SignContractModalProps {
   contractId: string;
   contractNumber?: string;
   contractTitle?: string;
+  partnerId?: string;
   onSuccess?: () => void;
+}
+
+interface SignatureFormValues {
+  signerType: SignerType;
+  signerName: string;
+  signerEmail?: string;
+  signerRole?: string;
+  signatureMethod: SignatureMethod;
+  otpCode?: string;
+  reason?: string;
 }
 
 export const SignContractModal: React.FC<SignContractModalProps> = ({
@@ -19,24 +36,96 @@ export const SignContractModal: React.FC<SignContractModalProps> = ({
   contractId,
   contractNumber,
   contractTitle,
+  partnerId,
   onSuccess,
 }) => {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<SignatureFormValues>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<number>(SignatureMethod.Mock);
+  const [selectedMethod, setSelectedMethod] = useState<SignatureMethod>(SignatureMethod.Mock);
+  const [signatureStatus, setSignatureStatus] = useState<ContractSignatureStatusDto | null>(null);
+
+  const currentUser = useAuthStore((state) => state.user);
+
+  // Cập nhật form và xác định bên còn thiếu chữ ký khi modal mở.
+  React.useEffect(() => {
+    if (!isOpen) return;
+
+    let isCancelled = false;
+
+    setError(null);
+    setSignatureStatus(null);
+    setSelectedMethod(SignatureMethod.Mock);
+    form.setFieldsValue({
+      signerType: SignerType.InternalUser,
+      signatureMethod: SignatureMethod.Mock,
+      otpCode: '123456',
+      signerName: currentUser?.fullName || 'Nguyễn Văn A',
+      signerEmail: currentUser?.email || 'user1@clm.com',
+      signerRole: currentUser?.roleName || (currentUser?.role ? `Vai trò ${currentUser.role}` : 'Đại diện thẩm quyền'),
+    });
+
+    setIsLoadingStatus(true);
+    void getSignatureStatus(contractId)
+      .then((status) => {
+        if (isCancelled) return;
+
+        setSignatureStatus(status);
+        if (status.hasInternalSignature && !status.hasPartnerSignature && partnerId) {
+          form.setFieldValue('signerType', SignerType.PartnerRepresentative);
+        }
+      })
+      .catch((statusError: unknown) => {
+        if (isCancelled) return;
+        setError(
+          statusError instanceof Error
+            ? statusError.message
+            : 'Không thể tải trạng thái ký của hợp đồng.'
+        );
+      })
+      .finally(() => {
+        if (!isCancelled) setIsLoadingStatus(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [contractId, currentUser, form, isOpen, partnerId]);
 
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
+
+      if (signatureStatus?.isFullySigned) {
+        setError('Hợp đồng đã được cả hai bên ký đầy đủ.');
+        return;
+      }
+
+      if (values.signerType === SignerType.PartnerRepresentative && !partnerId) {
+        setError('Hợp đồng chưa có thông tin đối tác để thực hiện chữ ký đối tác.');
+        return;
+      }
+
       setIsSubmitting(true);
       setError(null);
+
+      // Ưu tiên Id thực tế của user hiện tại, fallback về user hợp lệ trong database
+      const internalSignerId =
+        values.signerType === SignerType.InternalUser
+          ? currentUser?.id || '897a44a7-000f-4b89-a70e-feb4a14b8c96'
+          : undefined;
+
+      const partnerSignerId =
+        values.signerType === SignerType.PartnerRepresentative
+          ? partnerId
+          : undefined;
 
       await signContract({
         contractId,
         signerType: values.signerType,
-        internalSignerId: values.signerType === SignerType.InternalUser ? '3fa85f64-5717-4562-b3fc-2c963f66afa6' : undefined,
-        partnerSignerId: values.signerType === SignerType.PartnerRepresentative ? '4fa85f64-5717-4562-b3fc-2c963f66afa6' : undefined,
+        internalSignerId,
+        partnerSignerId,
         signerName: values.signerName.trim(),
         signerEmail: values.signerEmail?.trim(),
         signerRole: values.signerRole?.trim(),
@@ -75,6 +164,9 @@ export const SignContractModal: React.FC<SignContractModalProps> = ({
       onOk={handleOk}
       onCancel={handleCancel}
       confirmLoading={isSubmitting}
+      okButtonProps={{
+        disabled: isLoadingStatus || signatureStatus?.isFullySigned === true,
+      }}
       okText="Xác nhận Ký số"
       cancelText="Đóng"
       width={580}
@@ -91,6 +183,19 @@ export const SignContractModal: React.FC<SignContractModalProps> = ({
         </div>
 
         {error && <Alert type="error" message={error} showIcon />}
+
+        {signatureStatus && (
+          <Alert
+            type={signatureStatus.isFullySigned ? 'success' : 'info'}
+            showIcon
+            message={`Tiến độ ký: ${signatureStatus.signedPartiesCount}/${signatureStatus.totalRequiredParties} bên`}
+            description={
+              signatureStatus.isFullySigned
+                ? 'Hợp đồng đã được cả bên Nội bộ và Đối tác ký đầy đủ.'
+                : `Nội bộ: ${signatureStatus.hasInternalSignature ? 'Đã ký' : 'Chưa ký'} • Đối tác: ${signatureStatus.hasPartnerSignature ? 'Đã ký' : 'Chưa ký'}`
+            }
+          />
+        )}
 
         <Form
           form={form}
@@ -111,10 +216,18 @@ export const SignContractModal: React.FC<SignContractModalProps> = ({
           >
             <Radio.Group className="w-full">
               <div className="grid grid-cols-2 gap-3">
-                <Radio.Button value={SignerType.InternalUser} className="text-center py-1">
+                <Radio.Button
+                  value={SignerType.InternalUser}
+                  disabled={signatureStatus?.hasInternalSignature}
+                  className="text-center py-1"
+                >
                   Đại diện Nội bộ
                 </Radio.Button>
-                <Radio.Button value={SignerType.PartnerRepresentative} className="text-center py-1">
+                <Radio.Button
+                  value={SignerType.PartnerRepresentative}
+                  disabled={signatureStatus?.hasPartnerSignature || !partnerId}
+                  className="text-center py-1"
+                >
                   Đại diện Đối tác
                 </Radio.Button>
               </div>
@@ -151,7 +264,7 @@ export const SignContractModal: React.FC<SignContractModalProps> = ({
             rules={[{ required: true }]}
           >
             <Select
-              onChange={(val) => setSelectedMethod(val)}
+              onChange={(val: SignatureMethod) => setSelectedMethod(val)}
               options={[
                 {
                   value: SignatureMethod.Mock,
