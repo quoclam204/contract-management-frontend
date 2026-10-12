@@ -1,4 +1,4 @@
-import { apiClient } from '@/api/client';
+﻿import { apiClient } from '@/api/client';
 import { Attachment, AttachmentVersion } from '../types/attachment.types';
 
 export interface BackendAttachmentDto {
@@ -8,6 +8,8 @@ export interface BackendAttachmentDto {
   version: number;
   fileUrl: string;
   uploadedBy: string;
+  uploadedByName?: string;
+  createdByFullName?: string;
   uploadedAt: string;
   fileSize?: number;
   size?: number;
@@ -17,7 +19,7 @@ export interface BackendAttachmentDto {
 }
 
 /**
- * Chuyển đổi một AttachmentDto từ Backend sang đối tượng Attachment của Frontend
+ * Chuyá»ƒn Ä‘á»•i má»™t AttachmentDto tá»« Backend sang Ä‘á»‘i tÆ°á»£ng Attachment cá»§a Frontend
  */
 export function transformAttachmentDto(
   dto: BackendAttachmentDto,
@@ -36,7 +38,7 @@ export function transformAttachmentDto(
     fileName: dto.fileName,
     fileSize: size,
     fileType: extension,
-    uploadedBy: String(dto.uploadedBy || 'Người dùng'),
+    uploadedBy: String(dto.uploadedByName || dto.uploadedBy || 'NgÆ°á»i dĂ¹ng'),
     uploadedAt: dto.uploadedAt || new Date().toISOString(),
     downloadUrl: `/api/v1/attachments/${dto.id}/download`,
   };
@@ -53,7 +55,7 @@ export function transformAttachmentDto(
     contentType: extension === 'pdf' ? 'application/pdf' : undefined,
     currentVersion: versionNumber,
     versionString,
-    uploadedBy: String(dto.uploadedBy || 'Người dùng'),
+    uploadedBy: String(dto.uploadedByName || dto.uploadedBy || 'NgÆ°á»i dĂ¹ng'),
     createdAt: dto.uploadedAt || new Date().toISOString(),
     updatedAt: dto.uploadedAt || new Date().toISOString(),
     storagePath: dto.fileUrl,
@@ -63,7 +65,7 @@ export function transformAttachmentDto(
 }
 
 /**
- * Gom nhóm danh sách AttachmentDto theo tên tệp (fileName) trong một hợp đồng
+ * Gom nhĂ³m danh sĂ¡ch AttachmentDto theo tĂªn tá»‡p (fileName) trong má»™t há»£p Ä‘á»“ng
  */
 export function groupAttachmentDtos(
   dtos: BackendAttachmentDto[],
@@ -82,7 +84,7 @@ export function groupAttachmentDtos(
   const result: Attachment[] = [];
 
   for (const [, items] of groups) {
-    // Sắp xếp các phiên bản giảm dần: mới nhất lên đầu
+    // Sáº¯p xáº¿p cĂ¡c phiĂªn báº£n giáº£m dáº§n: má»›i nháº¥t lĂªn Ä‘áº§u
     items.sort((a, b) => (b.version || 0) - (a.version || 0));
     const latest = items[0];
     const oldest = items[items.length - 1];
@@ -99,7 +101,7 @@ export function groupAttachmentDtos(
         fileName: item.fileName,
         fileSize: size,
         fileType: item.fileName.split('.').pop()?.toLowerCase() || extension,
-        uploadedBy: String(item.uploadedBy || 'Người dùng'),
+        uploadedBy: String(item.uploadedByName || item.uploadedBy || 'NgÆ°á»i dĂ¹ng'),
         uploadedAt: item.uploadedAt,
         downloadUrl: `/api/v1/attachments/${item.id}/download`,
       };
@@ -119,7 +121,7 @@ export function groupAttachmentDtos(
       contentType: extension === 'pdf' ? 'application/pdf' : undefined,
       currentVersion,
       versionString: `v${currentVersion}`,
-      uploadedBy: String(latest.uploadedBy || 'Người dùng'),
+      uploadedBy: String(latest.uploadedByName || latest.uploadedBy || 'NgÆ°á»i dĂ¹ng'),
       createdAt: oldest.uploadedAt || latest.uploadedAt,
       updatedAt: latest.uploadedAt,
       storagePath: latest.fileUrl,
@@ -132,7 +134,7 @@ export function groupAttachmentDtos(
 }
 
 /**
- * 1. Lấy danh sách tệp đính kèm theo hợp đồng
+ * 1. Láº¥y danh sĂ¡ch tá»‡p Ä‘Ă­nh kĂ¨m theo há»£p Ä‘á»“ng
  * Route Backend: GET /api/v1/contracts/{contractId}/attachments
  */
 export async function getAttachments(params?: {
@@ -140,8 +142,8 @@ export async function getAttachments(params?: {
   search?: string;
   contractInfo?: { contractNumber?: string; contractTitle?: string };
 }): Promise<Attachment[]> {
-  // Nếu không có contractId hoặc contractId === 'all', trả về mảng rỗng
-  // Tuyệt đối không chạy vòng lặp bắn request hàng loạt làm nghẽn connection pool Backend
+  // Náº¿u khĂ´ng cĂ³ contractId hoáº·c contractId === 'all', tráº£ vá» máº£ng rá»—ng
+  // Tuyá»‡t Ä‘á»‘i khĂ´ng cháº¡y vĂ²ng láº·p báº¯n request hĂ ng loáº¡t lĂ m ngháº½n connection pool Backend
   if (!params?.contractId || params.contractId === 'all') {
     return [];
   }
@@ -152,7 +154,7 @@ export async function getAttachments(params?: {
     );
     let items = groupAttachmentDtos(dtos, params.contractInfo);
 
-    // Lọc từ khóa tìm kiếm nếu có
+    // Lá»c tá»« khĂ³a tĂ¬m kiáº¿m náº¿u cĂ³
     if (params.search?.trim()) {
       const q = params.search.trim().toLowerCase();
       items = items.filter(
@@ -166,13 +168,13 @@ export async function getAttachments(params?: {
 
     return items;
   } catch (err) {
-    console.error(`[getAttachments] Lỗi khi tải tệp cho hợp đồng ${params.contractId}:`, err);
+    console.error(`[getAttachments] Lá»—i khi táº£i tá»‡p cho há»£p Ä‘á»“ng ${params.contractId}:`, err);
     throw err;
   }
 }
 
 /**
- * 2. Tải lên tệp đính kèm mới cho hợp đồng
+ * 2. Táº£i lĂªn tá»‡p Ä‘Ă­nh kĂ¨m má»›i cho há»£p Ä‘á»“ng
  * Route Backend: POST /api/v1/contracts/{contractId}/attachments
  */
 export async function uploadAttachment(
@@ -188,8 +190,8 @@ export async function uploadAttachment(
 }
 
 /**
- * 3. Tải lên phiên bản mới cho tệp trong hợp đồng
- * Route Backend: POST /api/v1/contracts/{contractId}/attachments (Backend tự động tăng Max(Version) + 1)
+ * 3. Táº£i lĂªn phiĂªn báº£n má»›i cho tá»‡p trong há»£p Ä‘á»“ng
+ * Route Backend: POST /api/v1/contracts/{contractId}/attachments (Backend tá»± Ä‘á»™ng tÄƒng Max(Version) + 1)
  */
 export async function uploadNewVersion(
   contractId: string,
@@ -212,7 +214,7 @@ export async function uploadNewVersion(
     fileName: res.fileName,
     fileSize: size,
     fileType: extension,
-    uploadedBy: String(res.uploadedBy || 'Người dùng'),
+    uploadedBy: String(res.uploadedByName || res.uploadedBy || 'NgÆ°á»i dĂ¹ng'),
     uploadedAt: res.uploadedAt || new Date().toISOString(),
     notes: (formData.get('notes') as string) || undefined,
     downloadUrl: `/api/v1/attachments/${res.id}/download`,
@@ -220,7 +222,7 @@ export async function uploadNewVersion(
 }
 
 /**
- * 4. Tải tệp về máy (xử lý blob thật từ backend)
+ * 4. Táº£i tá»‡p vá» mĂ¡y (xá»­ lĂ½ blob tháº­t tá»« backend)
  * Route Backend: GET /api/v1/attachments/{id}/download
  */
 export async function downloadAttachment(id: string, preferredFileName?: string): Promise<void> {
@@ -233,7 +235,7 @@ export async function downloadAttachment(id: string, preferredFileName?: string)
 }
 
 /**
- * Helper kích hoạt download blob trên trình duyệt
+ * Helper kĂ­ch hoáº¡t download blob trĂªn trĂ¬nh duyá»‡t
  */
 function triggerBlobDownload(blob: Blob, fileName: string): void {
   const url = window.URL.createObjectURL(blob);
@@ -247,8 +249,8 @@ function triggerBlobDownload(blob: Blob, fileName: string): void {
 }
 
 /**
- * 5. Xóa tệp đính kèm
- * Route Backend: Hỗ trợ DELETE /api/v1/contracts/{contractId}/attachments/{id} và DELETE /api/v1/attachments/{id}
+ * 5. XĂ³a tá»‡p Ä‘Ă­nh kĂ¨m
+ * Route Backend: Há»— trá»£ DELETE /api/v1/contracts/{contractId}/attachments/{id} vĂ  DELETE /api/v1/attachments/{id}
  */
 export async function deleteAttachment(id: string, contractId?: string): Promise<void> {
   const endpoint = contractId
@@ -265,3 +267,4 @@ export async function deleteAttachment(id: string, contractId?: string): Promise
     }
   }
 }
+

@@ -194,14 +194,19 @@ export const AttachmentTable: React.FC<AttachmentTableProps> = ({
 
                     {/* Người tải lên */}
                     <td className="py-3.5 px-4 text-xs text-slate-700">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-semibold text-[10px] shrink-0">
-                          {item.uploadedBy?.charAt(0)?.toUpperCase() || 'U'}
-                        </div>
-                        <span className="truncate max-w-[140px]" title={item.uploadedBy}>
-                          {item.uploadedBy || 'Người dùng'}
-                        </span>
-                      </div>
+                      {(() => {
+                        const displayName = item.uploadedByName || item.createdByFullName || item.uploadedBy || 'N/A';
+                        return (
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-semibold text-[10px] shrink-0">
+                              {displayName.charAt(0)?.toUpperCase() || 'N'}
+                            </div>
+                            <span className="truncate max-w-[140px]" title={displayName}>
+                              {displayName}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Ngày tạo */}
