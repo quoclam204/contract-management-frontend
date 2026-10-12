@@ -186,3 +186,13 @@ export interface ContractSignatureStatusDto {
   signedPartiesCount: number;
   signatures: SignatureDto[];
 }
+
+export interface ContractForSignatureDto {
+  id: string;
+  contractNumber: string;
+  title: string;
+  partnerId: string;
+  value: number;
+  effectiveDate: string;
+  status: number | string;
+}

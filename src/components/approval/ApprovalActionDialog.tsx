@@ -43,11 +43,11 @@ export const ApprovalActionDialog: React.FC<ApprovalActionDialogProps> = ({
         approvalStepId,
         approverId,
         decision,
-        comment: decision === 'Rejected' ? comment : undefined,
+        comment: comment.trim() || undefined,
       });
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Đã xảy ra lỗi, vui lòng thử lại sau');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Đã xảy ra lỗi, vui lòng thử lại sau');
     } finally {
       setLoading(false);
     }
@@ -99,18 +99,22 @@ export const ApprovalActionDialog: React.FC<ApprovalActionDialogProps> = ({
             </div>
           </div>
 
-          {decision === 'Rejected' && (
-            <div className="space-y-2">
-              <p className="text-slate-600">Lý do từ chối:</p>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Nhập lý do từ chối..."
-                className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-              />
-            </div>
-          )}
+          <div className="space-y-2">
+            <p className="text-slate-600">
+              {decision === 'Rejected' ? 'Lý do từ chối:' : 'Ghi chú (tùy chọn):'}
+            </p>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder={
+                decision === 'Rejected'
+                  ? 'Nhập lý do từ chối...'
+                  : 'Nhập ghi chú phê duyệt...'
+              }
+              className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              rows={3}
+            />
+          </div>
 
           {error && (
             <p className="text-sm text-red-600">{error}</p>

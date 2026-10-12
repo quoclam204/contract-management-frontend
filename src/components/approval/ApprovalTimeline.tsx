@@ -1,23 +1,26 @@
 import React from 'react';
 import { CheckCircle, Clock, XCircle } from 'lucide-react';
 
-interface ApprovalStep {
+export interface ApprovalTimelineStep {
   id: string;
   stepOrder: number;
   approverRole: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
+  approverId?: string;
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Upcoming';
   comment?: string;
 }
 
 interface ApprovalTimelineProps {
-  steps: ApprovalStep[];
+  steps: ApprovalTimelineStep[];
   currentUserRole: string;
+  currentUserId?: string;
   onProcessApproval: (stepId: string) => void;
 }
 
 export const ApprovalTimeline: React.FC<ApprovalTimelineProps> = ({
   steps,
   currentUserRole,
+  currentUserId,
   onProcessApproval,
 }) => {
   if (steps.length === 0) {
@@ -39,9 +42,13 @@ export const ApprovalTimeline: React.FC<ApprovalTimelineProps> = ({
       {sortedSteps.map((step, index) => {
         const isLast = index === sortedSteps.length - 1;
         const isPending = step.status === 'Pending';
+        const normalizedCurrentRole = currentUserRole.trim().toLowerCase();
+        const normalizedApproverRole = step.approverRole.trim().toLowerCase();
         const isApprover = pendingStep &&
           pendingStep.id === step.id &&
-          currentUserRole === step.approverRole;
+          (normalizedCurrentRole === 'admin' ||
+            normalizedCurrentRole === normalizedApproverRole ||
+            (!!currentUserId && currentUserId === step.approverId));
 
         // Determine icon and color based on status
         let IconComponent: React.ComponentType<{ className?: string; size?: number }> = CheckCircle;
@@ -56,6 +63,10 @@ export const ApprovalTimeline: React.FC<ApprovalTimelineProps> = ({
           IconComponent = Clock;
           bgColor = 'bg-yellow-100';
           iconColor = 'text-yellow-500';
+        } else if (step.status === 'Upcoming') {
+          IconComponent = Clock;
+          bgColor = 'bg-slate-100';
+          iconColor = 'text-slate-400';
         }
 
         return (
@@ -79,7 +90,12 @@ export const ApprovalTimeline: React.FC<ApprovalTimelineProps> = ({
                 )}
               </div>
               <p className="text-slate-600">
-                {step.comment ?? (step.status === 'Pending' ? 'Đang chờ duyệt' : '')}
+                {step.comment ??
+                  (step.status === 'Pending'
+                    ? 'Đang chờ duyệt'
+                    : step.status === 'Upcoming'
+                      ? 'Chưa đến lượt duyệt'
+                      : '')}
               </p>
             </div>
             {/* Connector line (except for last step) */}

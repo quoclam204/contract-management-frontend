@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { message } from 'antd';
 import { contractApi } from './api/contractApi';
 import { StateMachineVisualizer } from './StateMachineVisualizer';
-import { ApprovalTimeline } from '@/components/approval/ApprovalTimeline';
+import {
+  ApprovalTimeline,
+  type ApprovalTimelineStep,
+} from '@/components/approval/ApprovalTimeline';
 import { ApprovalActionDialog } from '@/components/approval/ApprovalActionDialog';
 import { ApprovalService } from '@/services/approvalService';
+import { ApprovalDecision } from '@/features/workflows/types/workflow.types';
+import { useAuthStore } from '@/features/identity/useAuthStore';
 import { AIAnalysisWidget } from '@/features/ai-analysis/AIAnalysisWidget';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
@@ -26,47 +32,14 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-const mockCurrentUser = {
-  id: 'current-user-id',
-  role: 'Trưởng phòng',
-};
-
-const fetchApprovalSteps = async (): Promise<any[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  return [
-    {
-      id: 'step-1',
-      stepOrder: 1,
-      approverRole: 'Trưởng phòng',
-      status: 'Pending',
-      comment: undefined,
-    },
-    {
-      id: 'step-2',
-      stepOrder: 2,
-      approverRole: 'Phó Giám đốc',
-      status: 'Upcoming',
-      comment: undefined,
-    },
-    {
-      id: 'step-3',
-      stepOrder: 3,
-      approverRole: 'Giám đốc',
-      status: 'Upcoming',
-      comment: undefined,
-    },
-  ];
-};
-
 export const ContractDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [steps, setSteps] = useState<any[]>([]);
-  const [loadingSteps, setLoadingSteps] = useState<boolean>(true);
   const [openDialog, setOpenDialog] = useState<boolean>(false);
   const [pendingStepId, setPendingStepId] = useState<string>('');
+  const currentUser = useAuthStore((state) => state.user);
 
   // Fetch contract detail
   const {
@@ -78,6 +51,39 @@ export const ContractDetailPage: React.FC = () => {
     queryKey: ['contract', id],
     queryFn: () => (id ? contractApi.getContractById(id) : Promise.reject('No ID')),
     enabled: !!id,
+  });
+
+  const {
+    data: approvalProgress,
+    isLoading: loadingSteps,
+    refetch: refetchApprovalProgress,
+  } = useQuery({
+    queryKey: ['approval-progress', id],
+    queryFn: () => ApprovalService.getContractApprovalProgress(id!),
+    enabled: !!id,
+    retry: false,
+    refetchInterval: (query) => (query.state.data ? false : 3000),
+  });
+
+  const steps: ApprovalTimelineStep[] = (approvalProgress?.steps ?? []).map((step) => {
+    let status: ApprovalTimelineStep['status'] = 'Upcoming';
+
+    if (step.decision === ApprovalDecision.Approved) {
+      status = 'Approved';
+    } else if (step.decision === ApprovalDecision.Rejected) {
+      status = 'Rejected';
+    } else if (approvalProgress?.currentPendingStepOrder === step.stepOrder) {
+      status = 'Pending';
+    }
+
+    return {
+      id: step.id,
+      stepOrder: step.stepOrder,
+      approverRole: step.approverRoleName ?? `Vai trò ${step.approverRole}`,
+      approverId: step.approverId,
+      status,
+      comment: step.comment ?? undefined,
+    };
   });
 
   // State Machine Mutations
@@ -120,25 +126,6 @@ export const ContractDetailPage: React.FC = () => {
       navigate('/contracts');
     },
   });
-
-  useEffect(() => {
-    if (!id) return;
-    setLoadingSteps(true);
-    fetchApprovalSteps()
-      .then((fetchedSteps) => {
-        setSteps(fetchedSteps);
-        const pendingStep = fetchedSteps.find(
-          (s) => s.status === 'Pending' && s.approverRole === mockCurrentUser.role
-        );
-        setPendingStepId(pendingStep ? pendingStep.id : '');
-      })
-      .catch(() => {
-        setSteps([]);
-      })
-      .finally(() => {
-        setLoadingSteps(false);
-      });
-  }, [id]);
 
   if (isLoading) {
     return (
@@ -385,7 +372,8 @@ export const ContractDetailPage: React.FC = () => {
         ) : (
           <ApprovalTimeline
             steps={steps}
-            currentUserRole={mockCurrentUser.role}
+            currentUserRole={currentUser?.role ?? ''}
+            currentUserId={currentUser?.id}
             onProcessApproval={(stepId) => {
               setPendingStepId(stepId);
               setOpenDialog(true);
@@ -401,8 +389,21 @@ export const ContractDetailPage: React.FC = () => {
           setPendingStepId('');
         }}
         approvalStepId={pendingStepId}
-        approverId={mockCurrentUser.id}
-        onSubmit={ApprovalService.processApprovalStep}
+        approverId={
+          currentUser?.id ?? steps.find((step) => step.id === pendingStepId)?.approverId ?? ''
+        }
+        onSubmit={async (data) => {
+          await ApprovalService.processApprovalStep(data);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['approval-progress', id] }),
+            queryClient.invalidateQueries({ queryKey: ['pending-approvals'] }),
+            queryClient.invalidateQueries({ queryKey: ['contract', id] }),
+            queryClient.invalidateQueries({ queryKey: ['contracts'] }),
+            queryClient.invalidateQueries({ queryKey: ['contracts-for-signatures'] }),
+          ]);
+          await refetchApprovalProgress();
+          message.success('Đã cập nhật quyết định phê duyệt.');
+        }}
       />
 
       {/* AI Analysis Widget Section (Người 5) */}
