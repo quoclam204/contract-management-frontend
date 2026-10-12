@@ -9,6 +9,8 @@ export interface AttachmentVersion {
   fileSize: number; // in bytes
   fileType: string;
   uploadedBy: string;
+  uploadedByName?: string;
+  createdByFullName?: string;
   uploadedAt: string;
   notes?: string;
   downloadUrl?: string;
@@ -27,6 +29,8 @@ export interface Attachment {
   currentVersion: number;
   versionString: string; // e.g. "v1", "v2"
   uploadedBy: string;
+  uploadedByName?: string;
+  createdByFullName?: string;
   createdAt: string;
   updatedAt?: string;
   storagePath?: string;
