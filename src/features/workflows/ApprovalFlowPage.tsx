@@ -67,6 +67,9 @@ export const ApprovalFlowPage: React.FC = () => {
   } = useQuery({
     queryKey: ['pending-approvals'],
     queryFn: () => getPendingApprovals(),
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
+    refetchInterval: 5000,
   });
 
   // Fetch danh sách hợp đồng thực tế từ hệ thống phục vụ Ký số
