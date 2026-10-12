@@ -17,6 +17,8 @@ export class ApprovalService {
    */
   static async startApprovalProcess(contractId: string): Promise<ContractApprovalProgressDto> {
     return apiClient.post<ContractApprovalProgressDto>('/api/approvals/start', { contractId });
+  static async startApprovalProcess(contractId: string): Promise<void> {
+    return apiClient.post(`/api/approvals/submit`, { contractId });
   }
 
   /**
@@ -38,6 +40,25 @@ export class ApprovalService {
     contractId: string
   ): Promise<ContractApprovalProgressDto> {
     return apiClient.get<ContractApprovalProgressDto>(`/api/approvals/contract/${contractId}`);
+  static async processApprovalStep(data: ProcessApprovalStepCommand): Promise<void> {
+    const decisionNum = data.decision === 'Approved' || data.decision === 1 ? 1 : 2;
+    return apiClient.post(`/api/approvals/decision`, {
+      approvalStepId: data.approvalStepId,
+      approverId: data.approverId,
+      decision: decisionNum,
+      comment: data.comment,
+    });
+  }
+
+  /**
+   * Get approval progress for a contract
+   */
+  static async getProgressByContractId(contractId: string): Promise<any> {
+    try {
+      return await apiClient.get(`/api/approvals/contract/${contractId}`);
+    } catch {
+      return null;
+    }
   }
 
   static async getPendingApprovals(approverId?: string): Promise<PendingApprovalItemDto[]> {
